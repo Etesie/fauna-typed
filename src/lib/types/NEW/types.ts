@@ -32,11 +32,7 @@ type User_Update = Partial<User_CreateReplace>;
 type User_FaunaCreateReplace = Omit<User, 'Account' | 'age'> & {
 	Account: DocumentReference;
 };
-type User_FaunaUpdate = Partial<
-	Omit<User, 'Account' | 'age'> & {
-		Account: DocumentReference;
-	}
->;
+type User_FaunaUpdate = Partial<User_FaunaCreateReplace>;
 
 type Account = {
 	user: () => Account;
@@ -47,6 +43,10 @@ type Account_CreateReplace = Omit<Account, 'user'> & {
 	user: User | DocumentReference;
 };
 type Account_Update = Partial<Account_CreateReplace>;
+type Account_FaunaCreateReplace = Omit<Account, 'User'> & {
+	User: DocumentReference;
+};
+type Account_FaunaUpdate = Partial<Account_FaunaCreateReplace>;
 
 type Functions<T> = {
 	update: (document: T) => void;
@@ -107,9 +107,13 @@ export {
 	type User,
 	type User_CreateReplace,
 	type User_Update,
+	type User_FaunaCreateReplace,
+	type User_FaunaUpdate,
 	type Account,
 	type Account_CreateReplace,
 	type Account_Update,
+	type Account_FaunaCreateReplace,
+	type Account_FaunaUpdate,
 	type FunctionsT,
 	Page,
 	type Fields
