@@ -1,13 +1,27 @@
-import { Module, type QuerySuccess, TimeStub } from 'fauna';
+import { Module, type QuerySuccess, TimeStub, DocumentReference, DateStub } from 'fauna';
 import { client, fql } from '../database/client';
-import { Page, Document, type Predicate } from '../types/fauna';
-import { User, type UserProperties, type UserPojo } from '../types/user';
+import { type Predicate } from '../types/fauna';
+// import { User, type UserProperties, type UserPojo } from '../types/user';
 import type { AccountStore } from './store-account.svelte';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import { browser } from '$app/environment';
+import {
+	Page,
+	type Document,
+	type DocumentT,
+	type Fields,
+	type User,
+	type FunctionsT,
+	type Document_CreateT,
+	type User_CreateReplace,
+	type Document_UpdateReplaceT,
+	type User_Update
+} from '$lib/types/NEW/types';
+import { storage } from './_shared/local-storage';
 
 let COLL_NAME: string;
+let schema: Fields;
 
 export type CreateUserStore = {
 	users: User[];
@@ -21,13 +35,13 @@ export type CreateUserStore = {
 };
 
 export type UserStore = {
-	byId: (id: string) => User;
-	first: () => User;
-	last: () => User;
-	all: () => Page<User>;
-	paginate: (after: string) => Page<User>; // TODO: To be implemented
-	where: (filter: Predicate<User>) => Page<User>;
-	create: (user: UserProperties) => User;
+	byId: (id: string) => FunctionsT<DocumentT<User>>;
+	first: () => FunctionsT<DocumentT<User>>;
+	last: () => FunctionsT<DocumentT<User>>;
+	all: () => Page<FunctionsT<DocumentT<User>>>;
+	paginate: (after: string) => Page<FunctionsT<DocumentT<User>>>; // TODO: To be implemented
+	where: (filter: Predicate<User>) => Page<FunctionsT<DocumentT<User>>>;
+	create: (user: Document_CreateT<User_CreateReplace>) => FunctionsT<DocumentT<User>>;
 
 	undo: () => void;
 	redo: () => void;
@@ -37,35 +51,42 @@ export type UserStore = {
 	 * @param users
 	 * @returns
 	 */
-	toObjectArray: (users: User[]) => UserPojo[];
+	// toObjectArray: (users: FunctionsT<DocumentT<User>>[]) => UserPojo[];
 };
 
 const documentHandler = {
 	get(target: any, prop: any, receiver: any): any {
-		console.log('document handler accessed');
-
+		// console.log('document handler accessed');
 		switch (prop) {
-			case 'id':
-				return target.id;
-			case 'ts':
-				return target.ts;
-			case 'coll':
-				return target.coll;
-			case 'firstName':
-				return target.firstName;
-			case 'lastName':
-				return target.lastName;
+			/**
+			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
+			 */
+			// case 'id':
+			// 	return target.id;
+			// case 'ts':
+			// 	return target.ts;
+			// case 'coll':
+			// 	return target.coll;
+			// case 'ttl':
+			// 	return target.ttl;
+			// case 'firstName':
+			// 	return target.firstName;
+			// case 'lastName':
+			// 	return target.lastName;
 			case 'update':
-				return (user: Omit<Partial<UserProperties>, 'id' | 'coll'>): void => {
-					console.log('update target', target);
-					return target.update(user);
+				return (user: Document_UpdateReplaceT<User_Update>): void => {
+					console.log('update target', target.id);
+					return updateObject(target.id, user);
 				};
 			case 'replace':
-				return (user: Omit<UserProperties, 'id' | 'coll'>): void => target.replace(user);
+				return (user: Document_UpdateReplaceT<User_CreateReplace>): void => {
+					console.log('replace target', target.id);
+					return replaceObject(target.id, user);
+				};
 			case 'delete':
 				return () => {
-					console.log('delete target', target);
-					target.delete();
+					console.log('delete target', target.id);
+					deleteObject(target.id);
 				};
 			default:
 				return Reflect.get(target, prop, receiver);
@@ -76,37 +97,55 @@ const documentHandler = {
 /**
  * Used to determine the current state of the store
  */
-let current: User[] = $state<User[]>([]);
+let current = $state<FunctionsT<DocumentT<User>>[]>([]);
 
 /**
  * Used for undo functionality
  */
-let past: [User[]?] = $state<[User[]?]>([]);
+let past = $state<[FunctionsT<DocumentT<User>>[]?]>([]);
 
 /**
  * Used for redo functionality
  */
-let future: [User[]?] = $state<[User[]?]>([]);
+let future = $state<[FunctionsT<DocumentT<User>>[]?]>([]);
 
 /**
  * Stores all documents retrieved from the database unchanged. Used as a reference to determine the difference to "current" in order to determine which documents need to be updated, deleted or created in the database when the "sync" function is called.
  */
 const database: User[] = $state<User[]>([]);
 
-const getObjects = (filter: Predicate<User>): User[] => {
+const getObjects = (filter: Predicate<DocumentT<User>>): FunctionsT<DocumentT<User>>[] => {
 	return current.filter(filter);
 };
 
-const upsertObject = (user: UserProperties): User => {
+const upsertObjectFromClient = (
+	user: Document_CreateT<User_CreateReplace>
+): FunctionsT<DocumentT<User>> => {
+	// const newUser: DocumentT<User> = new Proxy(user, documentHandler);
+	// let newUser: Partial<DocumentT<User>> = transformCreateUpdateReplaceToDocument(user);
+
 	const index = current.findIndex((u) => $state.is(u.id, user.id));
 
-	const newUser: User = new Proxy(new User(user), documentHandler);
+	let id: string;
+	const ts: TimeStub = TimeStub.fromDate(new Date());
+	const coll: Module = new Module(COLL_NAME);
+	if (user.id) {
+		id = user.id;
+	} else {
+		id = 'TEMP_' + crypto.randomUUID();
+	}
+	const age: number = 0;
+	const newUser: FunctionsT<DocumentT<User>> = new Proxy(
+		{ id, ts, coll, age, ...user },
+		documentHandler
+	);
 
 	if (index > -1) {
 		addToPast();
 		current[index] = newUser;
 	} else {
 		addToPast();
+
 		current.push(newUser);
 	}
 	toLocalStorage();
@@ -118,7 +157,46 @@ const upsertObject = (user: UserProperties): User => {
 	return updatedUser;
 };
 
-export const updateObject = (id: string, fields: Partial<UserProperties>) => {
+const upsertObjectFromStorage = (
+	user: FunctionsT<DocumentT<User>>
+): FunctionsT<DocumentT<User>> => {
+	const index = current.findIndex((u) => $state.is(u.id, user.id));
+	const proxiedUser = new Proxy(user, documentHandler);
+
+	if (index > -1) {
+		addToPast();
+		current[index] = proxiedUser;
+	} else {
+		addToPast();
+		current.push(proxiedUser);
+	}
+	const updatedUser = current.find((u) => $state.is(u.id, user.id));
+	if (!updatedUser) {
+		throw new Error('User not found after upsert');
+	}
+	return updatedUser;
+};
+
+const upsertObjectFromFauna = (user: FunctionsT<DocumentT<User>>): FunctionsT<DocumentT<User>> => {
+	const index = current.findIndex((u) => $state.is(u.id, user.id));
+	const proxiedUser = new Proxy(user, documentHandler);
+
+	if (index > -1) {
+		addToPast();
+		current[index] = proxiedUser;
+	} else {
+		addToPast();
+		current.push(proxiedUser);
+	}
+	toLocalStorage();
+	const updatedUser = current.find((u) => $state.is(u.id, user.id));
+	if (!updatedUser) {
+		throw new Error('User not found after upsert');
+	}
+	return updatedUser;
+};
+
+export const updateObject = (id: string, fields: Document_UpdateReplaceT<User_Update>) => {
 	const user = current.find((u) => $state.is(u.id, id));
 	if (user) {
 		addToPast();
@@ -127,7 +205,7 @@ export const updateObject = (id: string, fields: Partial<UserProperties>) => {
 	}
 };
 
-export const replaceObject = (id: string, fields: UserProperties) => {
+export const replaceObject = (id: string, fields: Document_UpdateReplaceT<User_CreateReplace>) => {
 	const index = current.findIndex((u) => $state.is(u.id, id));
 	if (index !== -1) {
 		addToPast();
@@ -153,38 +231,24 @@ export const deleteObject = (id: string) => {
 };
 
 export const toLocalStorage = () => {
-	if (browser) {
-		localStorage.setItem(COLL_NAME, JSON.stringify(current));
-	}
+	storage.set(COLL_NAME, current);
 };
 
 export const fromLocalStorage = () => {
-	if (browser) {
-		const storedData = localStorage.getItem(COLL_NAME);
-		if (storedData) {
-			try {
-				const parsedUsers = JSON.parse(storedData) as UserProperties[];
-				parsedUsers.forEach((parsedUser) => {
-					upsertObject(new User(parsedUser));
-				});
-
-				console.log('Store updated from localStorage');
-			} catch (error) {
-				console.error('Error parsing stored data:', error);
-			}
-		} else {
-			console.log('No stored data found');
-		}
+	const parsedDocuments = storage.get<User>(COLL_NAME);
+	if (parsedDocuments) {
+		parsedDocuments.forEach((parsedUser) => {
+			upsertObjectFromStorage(parsedUser);
+		});
 	}
-	current.push(
-		new User({
-			id: 'TEMP_1',
-			firstName: 'John',
-			lastName: 'Doe',
-			ts: new Date().toISOString(), // Assuming ts is required
-			account: 'account' // Assuming account is required
-		})
-	);
+
+	// Only as workaround until @link https://github.com/sveltejs/svelte/issues/11964 is resolved
+	upsertObjectFromClient({
+		firstName: 'John',
+		lastName: 'Doe',
+		birthdate: DateStub.fromDate(new Date('1990-01-01')),
+		account: new DocumentReference({ coll: 'Account', id: '1' })
+	});
 	console.log('Test user added:', current);
 };
 
@@ -200,8 +264,10 @@ const addToPast = (): void => {
 	future = [];
 };
 
-export const createDocumentStore = <T>(collectionName: string): CreateUserStore => {
+export const createDocumentStore = <T>(collectionName: string, fields: Fields): CreateUserStore => {
 	COLL_NAME = collectionName;
+	schema = fields;
+
 	let AccountStore: AccountStore | null = null;
 
 	const createStoreHandler = {
@@ -250,21 +316,21 @@ export const createDocumentStore = <T>(collectionName: string): CreateUserStore 
 
 				case 'all':
 					return () => {
-						const result: Page<User> = new Page(current, undefined);
+						const result: Page<FunctionsT<DocumentT<User>>> = new Page(current, undefined);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'where':
-					return (filter: Predicate<User>) => {
-						const result: Page<User> = new Page(getObjects(filter), undefined);
+					return (filter: Predicate<DocumentT<User>>) => {
+						const result = new Page(getObjects(filter), undefined);
 						// fetchWhereFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'create':
-					return (user: UserProperties) => {
-						return upsertObject(user);
+					return (user: Document_CreateT<User_CreateReplace>) => {
+						return upsertObjectFromClient(user);
 					};
 
 				/*************
@@ -294,10 +360,10 @@ export const createDocumentStore = <T>(collectionName: string): CreateUserStore 
 						}
 					};
 
-				case 'toObjectArray':
-					return (users: User[]) => {
-						return users?.map((user) => user.toObject());
-					};
+				// case 'toObjectArray':
+				// 	return (users: User[]) => {
+				// 		return users?.map((user) => user.toObject());
+				// 	};
 
 				default:
 					// This will handle all other cases, including 'then' for Promises
@@ -328,7 +394,7 @@ export const createDocumentStore = <T>(collectionName: string): CreateUserStore 
 		};
 	}
 
-	const pageHandler = createPageHandler<User>();
+	const pageHandler = createPageHandler<FunctionsT<DocumentT<User>>>();
 
 	const arrayHandler = {
 		get(target: any, prop: any, receiver: any): any {
@@ -350,36 +416,36 @@ export const createDocumentStore = <T>(collectionName: string): CreateUserStore 
 	};
 
 	// TODO: change type to T
-	// async function fetchAllFromDB(page: Page<User>) {
-	// 	try {
-	// 		const response: QuerySuccess<Page<UserProperties>> = await client.query<Page<UserProperties>>(
-	// 			fql`User.all()`
-	// 		);
-	// 		if (response.data) {
-	// 			const data: User[] = response.data.data.map(
-	// 				(userWithoutMethods) => new User(userWithoutMethods)
-	// 			);
+	async function fetchAllFromDB(page: Page<FunctionsT<DocumentT<User>>>) {
+		try {
+			const response: QuerySuccess<Page<FunctionsT<DocumentT<User>>>> = await client.query<
+				Page<FunctionsT<DocumentT<User>>>
+			>(fql`User.all()`);
+			if (response.data) {
+				// const data: User[] = response.data.data.map(
+				// 	(userWithoutMethods) => new User(userWithoutMethods)
+				// );
 
-	// 			// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-	// 			data.forEach((newUser) => {
-	// 				const existingUserIndex = page.data.findIndex((user) => newUser.id === user.id);
-	// 				if (existingUserIndex !== -1) {
-	// 					// Replace the existing user with the new user
-	// 					page.data[existingUserIndex] = newUser;
-	// 				} else {
-	// 					// Add the new user to the store
-	// 					page.data.push(newUser);
-	// 				}
-	// 			});
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				response.data.data.forEach((newUser) => {
+					const existingUserIndex = page.data.findIndex((user) => newUser.id === user.id);
+					if (existingUserIndex !== -1) {
+						// Replace the existing user with the new user
+						page.data[existingUserIndex] = newUser;
+					} else {
+						// Add the new user to the store
+						page.data.push(newUser);
+					}
+				});
 
-	// 			// TODO: Update also the localStorage
+				// TODO: Update also the localStorage
 
-	// 			// Object.assign(page, updatedStore);
-	// 		}
-	// 	} catch (error) {
-	// 		console.error('Error fetching user from database:', error);
-	// 	}
-	// }
+				// Object.assign(page, updatedStore);
+			}
+		} catch (error) {
+			console.error('Error fetching user from database:', error);
+		}
+	}
 
 	return new Proxy({}, createStoreHandler) as unknown as CreateUserStore;
 };

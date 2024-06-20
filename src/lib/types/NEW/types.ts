@@ -101,6 +101,7 @@ type Fields = {
 };
 
 export {
+	type Document,
 	type DocumentT,
 	type Document_CreateT,
 	type Document_UpdateReplaceT,
