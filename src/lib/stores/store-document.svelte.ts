@@ -23,14 +23,25 @@ import {
 	type Document_ReplaceT,
 	type Document_UpdateT,
 	type User,
-	type User_Create,
 	type User_Replace,
 	type User_Update
 } from '$lib/types/NEW/types';
 import { storage } from './_shared/local-storage';
 
 let COLL_NAME: string;
-let schema: Fields;
+let definition: Definition = {
+	fields: {
+		firstName: {
+			signature: 'String'
+		},
+		lastName: {
+			signature: 'String'
+		},
+		account: {
+			signature: 'Ref<Account>?'
+		}
+	}
+};
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -47,7 +58,7 @@ export type CreateDocumentStore<
 	destroy: () => void;
 };
 
-export type DocumentStore<
+type DocumentStore<
 	T extends QueryValueObject,
 	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
@@ -61,6 +72,7 @@ export type DocumentStore<
 	paginate: (after: string) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>; // TODO: To be implemented
 	where: (filter: Predicate<DocumentT<T>>) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>;
 	create: (user: Document_CreateT<T_Create>) => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
+	definition: Definition;
 
 	undo: () => void;
 	redo: () => void;
@@ -71,6 +83,10 @@ export type DocumentStore<
 	 * @returns
 	 */
 	// toObjectArray: (users: FunctionsT<DocumentT<User>>[]) => UserPojo[];
+};
+
+type Definition = {
+	fields: Fields;
 };
 
 const documentHandler = {
@@ -123,7 +139,6 @@ const database: User[] = $state<User[]>([]);
 
 const getObjects = <
 	T extends QueryValueObject,
-	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 >(
@@ -283,7 +298,6 @@ export const fromLocalStorage = <T extends QueryValueObject>() => {
 		birthdate: DateStub.fromDate(new Date('1990-01-01')),
 		account: new DocumentReference({ coll: 'Account', id: '1' })
 	});
-	console.log('Test document added:', current);
 };
 
 /**
@@ -304,11 +318,9 @@ export const createDocumentStore = <
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 >(
-	collectionName: string,
-	fields: Fields
+	collectionName: string
 ): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
 	COLL_NAME = collectionName;
-	schema = fields;
 
 	let AccountStore: AccountStore | null = null;
 
@@ -336,8 +348,6 @@ export const createDocumentStore = <
 
 	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
-			console.log('storeProp:', prop);
-
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
@@ -374,6 +384,12 @@ export const createDocumentStore = <
 				case 'create':
 					return (document: Document_CreateT<T_Create>) => {
 						return upsertObjectFromClient(document);
+					};
+
+				case 'definition':
+					// TODO: Get definition from Fauna
+					return {
+						fields: definition.fields
 					};
 
 				/*************
@@ -418,8 +434,6 @@ export const createDocumentStore = <
 	function createPageHandler<T extends Document>() {
 		return {
 			get(target: Page<T>, prop: keyof Page<T>, receiver: any): any {
-				console.log('pageProp:', prop);
-
 				switch (prop) {
 					case 'data':
 						return new Proxy(target.data, arrayHandler);
@@ -441,8 +455,6 @@ export const createDocumentStore = <
 
 	const arrayHandler = {
 		get(target: any, prop: any, receiver: any): any {
-			console.log('arrayProp:', prop);
-
 			switch (prop) {
 				case 'at':
 					return (index: number) => {
@@ -455,6 +467,12 @@ export const createDocumentStore = <
 				default:
 					return Reflect.get(target, prop, receiver);
 			}
+		}
+	};
+
+	const definitionHandler = {
+		get(target: any, prop: any, receiver: any): any {
+			return Reflect.get(target, prop, receiver);
 		}
 	};
 

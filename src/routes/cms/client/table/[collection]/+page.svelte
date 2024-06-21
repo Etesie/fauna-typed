@@ -12,19 +12,18 @@
 
 	let collectionName = $derived($page.params.collection);
 
-	// To get the keys from User
-	const user = {
-		id: '',
-		ts: TimeStub.fromDate(new Date()),
-		coll: new Module('User'),
-		ttl: TimeStub.fromDate(new Date()),
-		firstName: '',
-		lastName: '',
-		birthdate: DateStub.fromDate(new Date('1990-01-01')),
-		account: new DocumentReference({ coll: 'Account', id: '1' }),
-		age: 0
-	} as DocumentT<User_Create>;
-	const allKeys = Object.keys(user) as Array<keyof DocumentT<User>>;
+	const baseFields = [
+		['id', { signature: 'String' }],
+		['ts', { signature: 'Timestamp' }],
+		['ttl', { signature: 'Timestamp' }],
+		['coll', { signature: 'Module' }]
+	];
+
+	const userFields = Object.entries(s.User.definition.fields);
+	const allFields = [...baseFields, ...userFields];
+
+	// const allKeys = Object.keys(user) as Array<keyof DocumentT<User>>;
+	const allKeys = allFields.map((field) => field[0] as keyof DocumentT<User>);
 
 	const readonlyKeys: Array<keyof DocumentT<User>> = ['coll', 'ts'];
 	const writableKeys = allKeys.filter((key) => !readonlyKeys.includes(key));

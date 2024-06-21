@@ -18,11 +18,8 @@ const userFields = {
 const AccountStore = createAccountStore();
 // const UserStore = createDocumentStore<User>('User');
 // Can I pass a class instead of a string?
-const UserStore = createDocumentStore<User, User_Create, User_Replace, User_Update>(
-	'User',
-	userFields
-);
-// UserStore.init(AccountStore).byId('1').repl;
+const UserStore = createDocumentStore<User, User_Create, User_Replace, User_Update>('User');
+// console.log('fields:', Object.entries(UserStore.init(AccountStore).definition.fields).at(0));
 // const collections = Collection.all();
 // collections.data.map((collection) => {
 // 	createDocumentStore(collection.name, collection.definition.fields);
