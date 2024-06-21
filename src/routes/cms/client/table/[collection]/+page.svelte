@@ -1,33 +1,39 @@
 <script lang="ts">
-	import { User, asc, desc } from '$lib/stores';
-	import { User as UserClass, type UserProperties } from '$lib/types/user';
+	import { stores as s, asc, desc } from '$lib/stores';
+	// import { User, type UserProperties } from '$lib/types/user';
 	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import Sort from './sort.svelte';
 	import type { Ordering } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
 	import { page } from '$app/stores';
+	import type { DocumentT, Document_CreateT, User, User_Create } from '$lib/types/NEW/types';
+	import { DateStub, DocumentReference, Module, TimeStub } from 'fauna';
 
 	let collectionName = $derived($page.params.collection);
 
 	// To get the keys from User
-	const user = new UserClass({
+	const user = {
 		id: '',
-		ttl: new Date(),
+		ts: TimeStub.fromDate(new Date()),
+		coll: new Module('User'),
+		ttl: TimeStub.fromDate(new Date()),
 		firstName: '',
 		lastName: '',
-		account: ''
-	});
-	const allKeys = Object.keys(user) as Array<keyof UserProperties>;
+		birthdate: DateStub.fromDate(new Date('1990-01-01')),
+		account: new DocumentReference({ coll: 'Account', id: '1' }),
+		age: 0
+	} as DocumentT<User_Create>;
+	const allKeys = Object.keys(user) as Array<keyof DocumentT<User>>;
 
-	const readonlyKeys: Array<keyof UserProperties> = ['coll', 'ts'];
+	const readonlyKeys: Array<keyof DocumentT<User>> = ['coll', 'ts'];
 	const writableKeys = allKeys.filter((key) => !readonlyKeys.includes(key));
 
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
 	};
 
-	type CollectionFilter = StringifyProperties<UserProperties>;
+	type CollectionFilter = StringifyProperties<DocumentT<User>>;
 
 	const createEmptyFilter = (): CollectionFilter => {
 		const filter: Partial<CollectionFilter> = {};
@@ -42,30 +48,32 @@
 	let sorter: Sorter[] = $state([]);
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
-	function getSorters(sorter: Sorter[]): Ordering<UserClass>[] {
+	function getSorters(sorter: Sorter[]): Ordering<User>[] {
 		return sorter.map((sort) => {
-			const key = sort.key as keyof UserClass;
+			const key = sort.key as keyof User;
 			const sorterFunction = sort.direction === 'asc' ? asc : desc;
-			return sorterFunction((u: UserClass) => u[key]);
+			return sorterFunction((u: User) => u[key]);
 		});
 	}
 
 	let usersPageFiltered = $derived(
-		User.where(
+		s.User.where(
 			(u) => u.firstName.includes(filter.firstName) && u.lastName.includes(filter.lastName)
 		).order(...getSorters(sorter))
 	);
 
-	const u_user: UserProperties = $state({
+	const newUser = $state<Document_CreateT<User_Create>>({
 		firstName: '',
-		lastName: ''
+		lastName: '',
+		birthdate: DateStub.fromDate(new Date('1990-01-01')),
+		account: new DocumentReference({ coll: 'Account', id: '1' })
 	});
 
 	async function createUser() {
-		console.log('New user: ', u_user);
-		User.create(u_user);
-		u_user.firstName = '';
-		u_user.lastName = '';
+		console.log('New user: ', newUser);
+		s.User.create(newUser);
+		newUser.firstName = '';
+		newUser.lastName = '';
 
 		await tick();
 		const inputElement = document.getElementById('create-user');
@@ -83,8 +91,8 @@
 
 <div class="flex flex-wrap justify-center gap-10 p-4">
 	<div>
-		<button class="btn preset-filled" onclick={() => User.undo()}>Undo</button>
-		<button class="btn preset-filled" onclick={() => User.redo()}>Redo</button>
+		<button class="btn preset-filled" onclick={() => s.User.undo()}>Undo</button>
+		<button class="btn preset-filled" onclick={() => s.User.redo()}>Redo</button>
 	</div>
 	<div class="w-192 flex flex-col gap-10">
 		<div class="flex flex-col gap-3">
@@ -129,7 +137,7 @@
 									class="input"
 									name="firstName"
 									type="text"
-									bind:value={u_user.firstName}
+									bind:value={newUser.firstName}
 									onkeydown={on_key_down}
 								/></td
 							>
@@ -138,7 +146,7 @@
 									class="input"
 									name="lastName"
 									type="text"
-									bind:value={u_user.lastName}
+									bind:value={newUser.lastName}
 									onkeydown={on_key_down}
 								/>
 							</td>

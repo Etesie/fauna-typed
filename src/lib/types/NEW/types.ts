@@ -8,10 +8,12 @@ import {
 
 type Document = Omit<FaunaDocument, 'toObject'>;
 type Document_Create = Partial<Omit<Document, 'ts' | 'coll'>>;
-type Document_UpdateReplace = Omit<Document_Create, 'id'>;
+type Document_Update = Omit<Document_Create, 'id'>;
+type Document_Replace = Document_Update;
 type DocumentT<T extends QueryValueObject> = Document & T;
 type Document_CreateT<T extends QueryValueObject> = Document_Create & T;
-type Document_UpdateReplaceT<T extends QueryValueObject> = Document_UpdateReplace & T;
+type Document_UpdateT<T extends QueryValueObject> = Document_Update & T;
+type Document_ReplaceT<T extends QueryValueObject> = Document_Replace & T;
 
 type User = {
 	firstName: string;
@@ -23,38 +25,46 @@ type User = {
 /**
  * \*_Create/Replace types don't have Computed fields and Documents replaced with Document and References
  */
-type User_CreateReplace = Omit<User, 'age' | 'account'> & {
+type User_Create = Omit<User, 'age' | 'account'> & {
 	account: Account | DocumentReference;
 };
-type User_Update = Partial<User_CreateReplace>;
+type User_Replace = User_Create;
+type User_Update = Partial<User_Create>;
 
 /** Used to update documents in Fauna */
-type User_FaunaCreateReplace = Omit<User, 'Account' | 'age'> & {
+type User_FaunaCreate = Omit<User, 'Account' | 'age'> & {
 	Account: DocumentReference;
 };
-type User_FaunaUpdate = Partial<User_FaunaCreateReplace>;
+type User_FaunaReplace = User_FaunaCreate;
+type User_FaunaUpdate = Partial<User_FaunaCreate>;
 
 type Account = {
 	user: () => Account;
 	provider: string;
 	providerUserId: string;
 };
-type Account_CreateReplace = Omit<Account, 'user'> & {
+type Account_Create = Omit<Account, 'user'> & {
 	user: User | DocumentReference;
 };
-type Account_Update = Partial<Account_CreateReplace>;
-type Account_FaunaCreateReplace = Omit<Account, 'User'> & {
+type Account_Replace = Account_Create;
+type Account_Update = Partial<Account_Create>;
+type Account_FaunaCreate = Omit<Account, 'User'> & {
 	User: DocumentReference;
 };
-type Account_FaunaUpdate = Partial<Account_FaunaCreateReplace>;
+type Account_FaunaReplace = Account_FaunaCreate;
+type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
 
-type Functions<T> = {
-	update: (document: T) => void;
-	replace: (document: T) => void;
+type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
+	update: (document: Document_UpdateT<T_Update>) => void;
+	replace: (document: Document_UpdateT<T_Replace>) => void;
 	delete: () => void;
 };
 
-type FunctionsT<T> = Functions<T> & T;
+type FunctionsT<
+	T,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+> = Functions<T, T_Replace, T_Update> & T;
 
 class Page<T extends Document> {
 	data: T[];
@@ -104,16 +114,21 @@ export {
 	type Document,
 	type DocumentT,
 	type Document_CreateT,
-	type Document_UpdateReplaceT,
+	type Document_UpdateT,
+	type Document_ReplaceT,
 	type User,
-	type User_CreateReplace,
+	type User_Create,
+	type User_Replace,
 	type User_Update,
-	type User_FaunaCreateReplace,
+	type User_FaunaCreate,
+	type User_FaunaReplace,
 	type User_FaunaUpdate,
 	type Account,
-	type Account_CreateReplace,
+	type Account_Create,
+	type Account_Replace,
 	type Account_Update,
-	type Account_FaunaCreateReplace,
+	type Account_FaunaCreate,
+	type Account_FaunaReplace,
 	type Account_FaunaUpdate,
 	type FunctionsT,
 	Page,

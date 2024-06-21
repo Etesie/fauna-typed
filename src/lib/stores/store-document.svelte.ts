@@ -1,4 +1,11 @@
-import { Module, type QuerySuccess, TimeStub, DocumentReference, DateStub } from 'fauna';
+import {
+	Module,
+	type QuerySuccess,
+	TimeStub,
+	DocumentReference,
+	DateStub,
+	type QueryValueObject
+} from 'fauna';
 import { client, fql } from '../database/client';
 import { type Predicate } from '../types/fauna';
 // import { User, type UserProperties, type UserPojo } from '../types/user';
@@ -8,14 +15,16 @@ import { redo, undo } from './_shared/history';
 import { browser } from '$app/environment';
 import {
 	Page,
+	type Fields,
+	type FunctionsT,
 	type Document,
 	type DocumentT,
-	type Fields,
-	type User,
-	type FunctionsT,
 	type Document_CreateT,
-	type User_CreateReplace,
-	type Document_UpdateReplaceT,
+	type Document_ReplaceT,
+	type Document_UpdateT,
+	type User,
+	type User_Create,
+	type User_Replace,
 	type User_Update
 } from '$lib/types/NEW/types';
 import { storage } from './_shared/local-storage';
@@ -23,10 +32,14 @@ import { storage } from './_shared/local-storage';
 let COLL_NAME: string;
 let schema: Fields;
 
-export type CreateUserStore = {
-	users: User[];
-	init: (accountStore: AccountStore) => UserStore; // TODO: init needs also to take the database client
-	initS: UserStore; // TODO: Only for testing - delete later
+export type CreateDocumentStore<
+	T extends QueryValueObject,
+	T_Create extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+> = {
+	init: (accountStore: AccountStore) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
+	// initS: UserStore; // TODO: Only for testing - delete later
 	/**
 	 * Empties the store. Useful if e.g. the user signs out
 	 * @returns
@@ -34,14 +47,20 @@ export type CreateUserStore = {
 	destroy: () => void;
 };
 
-export type UserStore = {
-	byId: (id: string) => FunctionsT<DocumentT<User>>;
-	first: () => FunctionsT<DocumentT<User>>;
-	last: () => FunctionsT<DocumentT<User>>;
-	all: () => Page<FunctionsT<DocumentT<User>>>;
-	paginate: (after: string) => Page<FunctionsT<DocumentT<User>>>; // TODO: To be implemented
-	where: (filter: Predicate<User>) => Page<FunctionsT<DocumentT<User>>>;
-	create: (user: Document_CreateT<User_CreateReplace>) => FunctionsT<DocumentT<User>>;
+export type DocumentStore<
+	T extends QueryValueObject,
+	T_Create extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+> = {
+	// byId: (id: string) => FunctionsT<DocumentT<T>>;
+	byId: (id: string) => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
+	first: () => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
+	last: () => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
+	all: () => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>;
+	paginate: (after: string) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>; // TODO: To be implemented
+	where: (filter: Predicate<DocumentT<T>>) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>;
+	create: (user: Document_CreateT<T_Create>) => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
 
 	undo: () => void;
 	redo: () => void;
@@ -61,27 +80,15 @@ const documentHandler = {
 			/**
 			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
 			 */
-			// case 'id':
-			// 	return target.id;
-			// case 'ts':
-			// 	return target.ts;
-			// case 'coll':
-			// 	return target.coll;
-			// case 'ttl':
-			// 	return target.ttl;
-			// case 'firstName':
-			// 	return target.firstName;
-			// case 'lastName':
-			// 	return target.lastName;
 			case 'update':
-				return (user: Document_UpdateReplaceT<User_Update>): void => {
+				return (doc: Document_UpdateT<User_Update>): void => {
 					console.log('update target', target.id);
-					return updateObject(target.id, user);
+					return updateObject(target.id, doc);
 				};
 			case 'replace':
-				return (user: Document_UpdateReplaceT<User_CreateReplace>): void => {
+				return (doc: Document_ReplaceT<User_Replace>): void => {
 					console.log('replace target', target.id);
-					return replaceObject(target.id, user);
+					return replaceObject(target.id, doc);
 				};
 			case 'delete':
 				return () => {
@@ -114,16 +121,25 @@ let future = $state<[FunctionsT<DocumentT<User>>[]?]>([]);
  */
 const database: User[] = $state<User[]>([]);
 
-const getObjects = (filter: Predicate<DocumentT<User>>): FunctionsT<DocumentT<User>>[] => {
+const getObjects = <
+	T extends QueryValueObject,
+	T_Create extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+>(
+	filter: Predicate<DocumentT<T>>
+): FunctionsT<DocumentT<T>, T_Replace, T_Update>[] => {
 	return current.filter(filter);
 };
 
-const upsertObjectFromClient = (
-	user: Document_CreateT<User_CreateReplace>
-): FunctionsT<DocumentT<User>> => {
-	// const newUser: DocumentT<User> = new Proxy(user, documentHandler);
-	// let newUser: Partial<DocumentT<User>> = transformCreateUpdateReplaceToDocument(user);
-
+const upsertObjectFromClient = <
+	T extends QueryValueObject,
+	T_Create extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+>(
+	user: Document_CreateT<T_Create>
+): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
 	const index = current.findIndex((u) => $state.is(u.id, user.id));
 
 	let id: string;
@@ -134,78 +150,96 @@ const upsertObjectFromClient = (
 	} else {
 		id = 'TEMP_' + crypto.randomUUID();
 	}
+
+	// TODO: We need to identify computed fields like age automatically and replace it
 	const age: number = 0;
-	const newUser: FunctionsT<DocumentT<User>> = new Proxy(
+	const newDoc: FunctionsT<DocumentT<T>, T_Replace, T_Update> = new Proxy(
 		{ id, ts, coll, age, ...user },
 		documentHandler
 	);
 
 	if (index > -1) {
 		addToPast();
-		current[index] = newUser;
+		current[index] = newDoc;
 	} else {
 		addToPast();
 
-		current.push(newUser);
+		current.push(newDoc);
 	}
 	toLocalStorage();
-	const updatedUser = current.find((u) => $state.is(u.id, newUser.id));
-	if (!updatedUser) {
-		throw new Error('User not found after upsert');
+	const updatedDoc = current.find((u) => $state.is(u.id, newDoc.id));
+	if (!updatedDoc) {
+		throw new Error('Document not found after upsert');
 	}
 	console.log('***current***\n', current);
-	return updatedUser;
+	return updatedDoc;
 };
 
-const upsertObjectFromStorage = (
-	user: FunctionsT<DocumentT<User>>
-): FunctionsT<DocumentT<User>> => {
-	const index = current.findIndex((u) => $state.is(u.id, user.id));
-	const proxiedUser = new Proxy(user, documentHandler);
+const upsertObjectFromStorage = <
+	T extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+>(
+	doc: FunctionsT<DocumentT<T>, T_Replace, T_Update>
+): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
+	const index = current.findIndex((u) => $state.is(u.id, doc.id));
+	const proxiedDoc = new Proxy(doc, documentHandler);
 
 	if (index > -1) {
 		addToPast();
-		current[index] = proxiedUser;
+		current[index] = proxiedDoc;
 	} else {
 		addToPast();
-		current.push(proxiedUser);
+		current.push(proxiedDoc);
 	}
-	const updatedUser = current.find((u) => $state.is(u.id, user.id));
-	if (!updatedUser) {
-		throw new Error('User not found after upsert');
+	const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
+	if (!updatedDoc) {
+		throw new Error('Document not found after upsert');
 	}
-	return updatedUser;
+	return updatedDoc;
 };
 
-const upsertObjectFromFauna = (user: FunctionsT<DocumentT<User>>): FunctionsT<DocumentT<User>> => {
-	const index = current.findIndex((u) => $state.is(u.id, user.id));
-	const proxiedUser = new Proxy(user, documentHandler);
+const upsertObjectFromFauna = <
+	T extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+>(
+	doc: FunctionsT<DocumentT<T>, T_Replace, T_Update>
+): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
+	const index = current.findIndex((u) => $state.is(u.id, doc.id));
+	const proxiedDoc = new Proxy(doc, documentHandler);
 
 	if (index > -1) {
 		addToPast();
-		current[index] = proxiedUser;
+		current[index] = proxiedDoc;
 	} else {
 		addToPast();
-		current.push(proxiedUser);
+		current.push(proxiedDoc);
 	}
 	toLocalStorage();
-	const updatedUser = current.find((u) => $state.is(u.id, user.id));
-	if (!updatedUser) {
-		throw new Error('User not found after upsert');
+	const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
+	if (!updatedDoc) {
+		throw new Error('Document not found after upsert');
 	}
-	return updatedUser;
+	return updatedDoc;
 };
 
-export const updateObject = (id: string, fields: Document_UpdateReplaceT<User_Update>) => {
-	const user = current.find((u) => $state.is(u.id, id));
-	if (user) {
+export const updateObject = <T_Update extends QueryValueObject>(
+	id: string,
+	fields: Document_UpdateT<T_Update>
+) => {
+	const doc = current.find((u) => $state.is(u.id, id));
+	if (doc) {
 		addToPast();
-		Object.assign(user, fields);
+		Object.assign(doc, fields);
 		toLocalStorage();
 	}
 };
 
-export const replaceObject = (id: string, fields: Document_UpdateReplaceT<User_CreateReplace>) => {
+export const replaceObject = <T_Replace extends QueryValueObject>(
+	id: string,
+	fields: Document_ReplaceT<T_Replace>
+) => {
 	const index = current.findIndex((u) => $state.is(u.id, id));
 	if (index !== -1) {
 		addToPast();
@@ -234,11 +268,11 @@ export const toLocalStorage = () => {
 	storage.set(COLL_NAME, current);
 };
 
-export const fromLocalStorage = () => {
-	const parsedDocuments = storage.get<User>(COLL_NAME);
+export const fromLocalStorage = <T extends QueryValueObject>() => {
+	const parsedDocuments = storage.get<T>(COLL_NAME);
 	if (parsedDocuments) {
-		parsedDocuments.forEach((parsedUser) => {
-			upsertObjectFromStorage(parsedUser);
+		parsedDocuments.forEach((parsedDocument) => {
+			upsertObjectFromStorage(parsedDocument);
 		});
 	}
 
@@ -249,7 +283,7 @@ export const fromLocalStorage = () => {
 		birthdate: DateStub.fromDate(new Date('1990-01-01')),
 		account: new DocumentReference({ coll: 'Account', id: '1' })
 	});
-	console.log('Test user added:', current);
+	console.log('Test document added:', current);
 };
 
 /**
@@ -264,7 +298,15 @@ const addToPast = (): void => {
 	future = [];
 };
 
-export const createDocumentStore = <T>(collectionName: string, fields: Fields): CreateUserStore => {
+export const createDocumentStore = <
+	T extends QueryValueObject,
+	T_Create extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+>(
+	collectionName: string,
+	fields: Fields
+): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
 	COLL_NAME = collectionName;
 	schema = fields;
 
@@ -273,8 +315,6 @@ export const createDocumentStore = <T>(collectionName: string, fields: Fields): 
 	const createStoreHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
-				case 'users':
-					return current;
 				case 'init':
 					return (accountStore: AccountStore) => {
 						AccountStore = accountStore;
@@ -316,21 +356,24 @@ export const createDocumentStore = <T>(collectionName: string, fields: Fields): 
 
 				case 'all':
 					return () => {
-						const result: Page<FunctionsT<DocumentT<User>>> = new Page(current, undefined);
+						const result = new Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>(
+							current,
+							undefined
+						);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'where':
-					return (filter: Predicate<DocumentT<User>>) => {
+					return (filter: Predicate<DocumentT<T>>) => {
 						const result = new Page(getObjects(filter), undefined);
 						// fetchWhereFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'create':
-					return (user: Document_CreateT<User_CreateReplace>) => {
-						return upsertObjectFromClient(user);
+					return (document: Document_CreateT<T_Create>) => {
+						return upsertObjectFromClient(document);
 					};
 
 				/*************
@@ -394,7 +437,7 @@ export const createDocumentStore = <T>(collectionName: string, fields: Fields): 
 		};
 	}
 
-	const pageHandler = createPageHandler<FunctionsT<DocumentT<User>>>();
+	const pageHandler = createPageHandler<FunctionsT<DocumentT<T>, T_Replace, T_Update>>();
 
 	const arrayHandler = {
 		get(target: any, prop: any, receiver: any): any {
@@ -416,25 +459,24 @@ export const createDocumentStore = <T>(collectionName: string, fields: Fields): 
 	};
 
 	// TODO: change type to T
-	async function fetchAllFromDB(page: Page<FunctionsT<DocumentT<User>>>) {
+	async function fetchAllFromDB(page: Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>) {
 		try {
-			const response: QuerySuccess<Page<FunctionsT<DocumentT<User>>>> = await client.query<
-				Page<FunctionsT<DocumentT<User>>>
-			>(fql`User.all()`);
+			const response: QuerySuccess<Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>> =
+				await client.query<Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>>(fql`User.all()`);
 			if (response.data) {
 				// const data: User[] = response.data.data.map(
 				// 	(userWithoutMethods) => new User(userWithoutMethods)
 				// );
 
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				response.data.data.forEach((newUser) => {
-					const existingUserIndex = page.data.findIndex((user) => newUser.id === user.id);
+				response.data.data.forEach((newDoc) => {
+					const existingUserIndex = page.data.findIndex((doc) => newDoc.id === doc.id);
 					if (existingUserIndex !== -1) {
-						// Replace the existing user with the new user
-						page.data[existingUserIndex] = newUser;
+						// Replace the existing document with the new document
+						page.data[existingUserIndex] = newDoc;
 					} else {
-						// Add the new user to the store
-						page.data.push(newUser);
+						// Add the new document to the store
+						page.data.push(newDoc);
 					}
 				});
 
@@ -443,9 +485,14 @@ export const createDocumentStore = <T>(collectionName: string, fields: Fields): 
 				// Object.assign(page, updatedStore);
 			}
 		} catch (error) {
-			console.error('Error fetching user from database:', error);
+			console.error('Error fetching document from database:', error);
 		}
 	}
 
-	return new Proxy({}, createStoreHandler) as unknown as CreateUserStore;
+	return new Proxy({}, createStoreHandler) as unknown as CreateDocumentStore<
+		T,
+		T_Create,
+		T_Replace,
+		T_Update
+	>;
 };
