@@ -12,7 +12,6 @@ import { type Predicate } from '../types/fauna';
 import type { AccountStore } from './store-account.svelte';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
-import { browser } from '$app/environment';
 import {
 	Page,
 	type Fields,
@@ -49,8 +48,9 @@ export type CreateDocumentStore<
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 > = {
-	init: (accountStore: AccountStore) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
-	// initS: UserStore; // TODO: Only for testing - delete later
+	init: (
+		accountStore?: DocumentStore<T, T_Create, T_Replace, T_Update>
+	) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
 	/**
 	 * Empties the store. Useful if e.g. the user signs out
 	 * @returns
@@ -186,7 +186,6 @@ const upsertObjectFromClient = <
 	if (!updatedDoc) {
 		throw new Error('Document not found after upsert');
 	}
-	console.log('***current***\n', current);
 	return updatedDoc;
 };
 
@@ -328,8 +327,10 @@ export const createDocumentStore = <
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'init':
-					return (accountStore: AccountStore) => {
-						AccountStore = accountStore;
+					return (accountStore?: AccountStore) => {
+						if (accountStore) {
+							AccountStore = accountStore;
+						}
 						fromLocalStorage();
 						return new Proxy(current, storeHandler);
 					};

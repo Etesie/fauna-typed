@@ -1,32 +1,44 @@
-import { createAccountStore } from './store-account.svelte';
 import { createDocumentStore } from './store-document.svelte';
 import { asc, desc } from './_shared/order';
-import type { User, User_Create, User_Replace, User_Update } from '$lib/types/NEW/types';
+import type {
+	Account,
+	Account_Create,
+	Account_Replace,
+	Account_Update,
+	User,
+	User_Create,
+	User_Replace,
+	User_Update
+} from '$lib/types/NEW/types';
 
-const userFields = {
-	firstName: {
+const baseFields = {
+	id: {
 		signature: 'String'
 	},
-	lastName: {
+	coll: {
 		signature: 'String'
 	},
-	account: {
-		signature: 'Ref<Account>?'
+	ts: {
+		signature: 'Timestamp'
+	},
+	ttl: {
+		signature: 'Timestamp'
 	}
 };
 
-const AccountStore = createAccountStore();
-// const UserStore = createDocumentStore<User>('User');
-// Can I pass a class instead of a string?
+const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
+	'Account'
+);
+// console.log('fields:', Object.entries(AccountStore.init().definition.fields).at(0));
 const UserStore = createDocumentStore<User, User_Create, User_Replace, User_Update>('User');
-// console.log('fields:', Object.entries(UserStore.init(AccountStore).definition.fields).at(0));
 // const collections = Collection.all();
 // collections.data.map((collection) => {
 // 	createDocumentStore(collection.name, collection.definition.fields);
 // });
 
 const stores = {
-	User: UserStore.init(AccountStore)
+	User: UserStore.init(),
+	Account: AccountStore.init()
 };
 
-export { stores, asc, desc };
+export { stores, asc, desc, baseFields };

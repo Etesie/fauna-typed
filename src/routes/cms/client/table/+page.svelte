@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { stores as s, asc, desc } from '$lib/stores';
-	// import { User, type UserProperties } from '$lib/types/user';
+	import { stores as s, asc, desc, baseFields } from '$lib/stores';
 	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import Sort from './sort.svelte';
@@ -8,25 +7,15 @@
 	import type { Sorter } from './sort';
 	import { page } from '$app/stores';
 	import type { DocumentT, Document_CreateT, User, User_Create } from '$lib/types/NEW/types';
-	import { DateStub, DocumentReference, Module, TimeStub } from 'fauna';
 
-	let collectionName = $derived($page.params.collection);
+	let collectionName = $derived($page.url.searchParams.get('coll'));
+	$inspect(collectionName);
 
-	const baseFields = [
-		['id', { signature: 'String' }],
-		['ts', { signature: 'Timestamp' }],
-		['ttl', { signature: 'Timestamp' }],
-		['coll', { signature: 'Module' }]
-	];
-
-	const userFields = Object.entries(s.User.definition.fields);
-	const allFields = [...baseFields, ...userFields];
+	const docFields = Object.entries(s.User.definition.fields);
+	const allFields = [...Object.entries(baseFields), ...docFields];
 
 	// const allKeys = Object.keys(user) as Array<keyof DocumentT<User>>;
 	const allKeys = allFields.map((field) => field[0] as keyof DocumentT<User>);
-
-	const readonlyKeys: Array<keyof DocumentT<User>> = ['coll', 'ts'];
-	const writableKeys = allKeys.filter((key) => !readonlyKeys.includes(key));
 
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
@@ -46,36 +35,44 @@
 
 	let sorter: Sorter[] = $state([]);
 
+	const getWherePredicate = <T,>(
+		allKeys: (keyof T)[],
+		filter: Partial<Record<keyof T, string>>
+	): ((item: T) => boolean) => {
+		return (item: T) => {
+			return allKeys.every((key) => {
+				const filterValue = filter[key];
+				if (typeof filterValue === 'string' && filterValue) {
+					return item[key] && typeof item[key] === 'string' && item[key].includes(filterValue);
+				}
+				return true; // If the filter is empty or not a string, ignore this filter
+			});
+		};
+	};
+
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
-	function getSorters(sorter: Sorter[]): Ordering<User>[] {
+	const getSorters = (sorter: Sorter[]): Ordering<User>[] => {
 		return sorter.map((sort) => {
 			const key = sort.key as keyof User;
 			const sorterFunction = sort.direction === 'asc' ? asc : desc;
 			return sorterFunction((u: User) => u[key]);
 		});
-	}
+	};
 
-	let usersPageFiltered = $derived(
-		s.User.where(
-			(u) => u.firstName.includes(filter.firstName) && u.lastName.includes(filter.lastName)
-		).order(...getSorters(sorter))
+	let docsPageFiltered = $derived(
+		s[collectionName].where(getWherePredicate(allKeys, filter)).order(...getSorters(sorter))
 	);
+	$inspect(docsPageFiltered);
 
-	const newUser = $state<Document_CreateT<User_Create>>({
-		firstName: '',
-		lastName: '',
-		birthdate: DateStub.fromDate(new Date('1990-01-01')),
-		account: new DocumentReference({ coll: 'Account', id: '1' })
-	});
+	let newDoc = $state<Document_CreateT<any>>({});
 
-	async function createUser() {
-		console.log('New user: ', newUser);
-		s.User.create(newUser);
-		newUser.firstName = '';
-		newUser.lastName = '';
+	async function createDoc() {
+		console.log('New doc: ', newDoc);
+		s.User.create(newDoc);
+		newDoc = {};
 
 		await tick();
-		const inputElement = document.getElementById('create-user');
+		const inputElement = document.getElementById('create-doc');
 		if (inputElement) {
 			inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}
@@ -83,7 +80,7 @@
 
 	function on_key_down(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
-			createUser();
+			createDoc();
 		}
 	}
 </script>
@@ -95,7 +92,7 @@
 	</div>
 	<div class="w-192 flex flex-col gap-10">
 		<div class="flex flex-col gap-3">
-			<h2 class="h2">{collectionName.charAt(0).toUpperCase() + collectionName.slice(1)}</h2>
+			<h2 class="h2">{collectionName}</h2>
 			<div class="table-container space-y-4">
 				<table class="table w-full table-auto">
 					<thead>
@@ -112,48 +109,44 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each usersPageFiltered.data as user, index}
+						{#each docsPageFiltered.data as doc, index}
 							<tr>
 								<td class="w-5">{index + 1}</td>
 								{#each allKeys as key}
-									<td> <input class="input" type="text" bind:value={user[key]} name="key" /></td>
+									<td> <input class="input" type="text" bind:value={doc[key]} name="key" /></td>
 								{/each}
 								<td>
-									<button class="btn preset-filled" onclick={() => user.update(user)}>Update</button
-									>
+									<button class="btn preset-filled" onclick={() => doc.update(doc)}>Update</button>
 								</td>
 								<td>
-									<button class="btn-icon preset-tonal-error" onclick={() => user.delete()}>
+									<button class="btn-icon preset-tonal-error" onclick={() => doc.delete()}>
 										<X />
 									</button>
 								</td>
 							</tr>
 						{/each}
-						<tr id="create-user">
+						<tr id="create-doc">
 							<td></td>
-							<td>
-								<input
-									class="input"
-									name="firstName"
-									type="text"
-									bind:value={newUser.firstName}
-									onkeydown={on_key_down}
-								/></td
-							>
-							<td>
-								<input
-									class="input"
-									name="lastName"
-									type="text"
-									bind:value={newUser.lastName}
-									onkeydown={on_key_down}
-								/>
-							</td>
+							{#each allKeys as key}
+								{#if ['coll', 'ts'].includes(key)}
+									<td></td>
+								{:else}
+									<td>
+										<input
+											class="input"
+											name={key}
+											type="text"
+											bind:value={newDoc[key]}
+											onkeydown={on_key_down}
+										/>
+									</td>
+								{/if}
+							{/each}
 							<td>
 								<button
 									class="btn max-w-48 preset-filled"
-									onclick={() => createUser()}
-									onkeydown={on_key_down}>Create User</button
+									onclick={() => createDoc()}
+									onkeydown={on_key_down}>Create Document</button
 								>
 							</td>
 						</tr>

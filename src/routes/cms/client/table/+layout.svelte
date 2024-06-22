@@ -3,18 +3,20 @@
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { goto } from '$app/navigation';
 
-	let group = $state($page.params.collection);
+	let group = $state($page.url.searchParams.get('coll'));
 	let { children } = $props();
 
 	function handleTabClick(tabName: string) {
-		goto(`${tabName}`);
+		const url = new URL(window.location.href);
+		url.searchParams.set('coll', tabName);
+		goto(url.toString());
 	}
 </script>
 
 <Tabs>
 	{#snippet list()}
-		<Tabs.Control bind:group name="user" onclick={() => handleTabClick('user')}>User</Tabs.Control>
-		<Tabs.Control bind:group name="account" onclick={() => handleTabClick('account')}
+		<Tabs.Control bind:group name="User" onclick={() => handleTabClick('User')}>User</Tabs.Control>
+		<Tabs.Control bind:group name="Account" onclick={() => handleTabClick('Account')}
 			>Account</Tabs.Control
 		>
 	{/snippet}
