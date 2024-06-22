@@ -110,6 +110,8 @@ type Fields = {
 	[key: string]: Field;
 };
 
+type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
+
 export {
 	type Document,
 	type DocumentT,
@@ -132,5 +134,6 @@ export {
 	type Account_FaunaUpdate,
 	type FunctionsT,
 	Page,
-	type Fields
+	type Fields,
+	type Predicate
 };
