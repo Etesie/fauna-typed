@@ -6,22 +6,21 @@
 	import type { Ordering } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
 	import { page } from '$app/stores';
-	import type { DocumentT, Document_CreateT, User, User_Create } from '$lib/types/NEW/types';
+	import type { DocumentT, Document_CreateT } from '$lib/types/default/types';
+	import type { QueryValueObject } from 'fauna';
 
-	let collectionName = $derived($page.url.searchParams.get('coll'));
-	$inspect(collectionName);
+	let collectionName: String = $derived($page.url.searchParams.get('coll'));
 
-	const docFields = Object.entries(s.User.definition.fields);
+	const docFields = Object.entries(s[collectionName].definition.fields);
 	const allFields = [...Object.entries(baseFields), ...docFields];
 
-	// const allKeys = Object.keys(user) as Array<keyof DocumentT<User>>;
-	const allKeys = allFields.map((field) => field[0] as keyof DocumentT<User>);
+	const allKeys = allFields.map((field) => field[0] as keyof DocumentT<QueryValueObject>);
 
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
 	};
 
-	type CollectionFilter = StringifyProperties<DocumentT<User>>;
+	type CollectionFilter = StringifyProperties<DocumentT<QueryValueObject>>;
 
 	const createEmptyFilter = (): CollectionFilter => {
 		const filter: Partial<CollectionFilter> = {};
@@ -51,24 +50,23 @@
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
-	const getSorters = (sorter: Sorter[]): Ordering<User>[] => {
+	const getSorters = (sorter: Sorter[]): Ordering<QueryValueObject>[] => {
 		return sorter.map((sort) => {
-			const key = sort.key as keyof User;
+			const key = sort.key as keyof QueryValueObject;
 			const sorterFunction = sort.direction === 'asc' ? asc : desc;
-			return sorterFunction((u: User) => u[key]);
+			return sorterFunction((u: QueryValueObject) => u[key]);
 		});
 	};
 
 	let docsPageFiltered = $derived(
 		s[collectionName].where(getWherePredicate(allKeys, filter)).order(...getSorters(sorter))
 	);
-	$inspect(docsPageFiltered);
 
 	let newDoc = $state<Document_CreateT<any>>({});
 
 	async function createDoc() {
 		console.log('New doc: ', newDoc);
-		s.User.create(newDoc);
+		s[collectionName].create(newDoc);
 		newDoc = {};
 
 		await tick();
@@ -87,8 +85,8 @@
 
 <div class="flex flex-wrap justify-center gap-10 p-4">
 	<div>
-		<button class="btn preset-filled" onclick={() => s.User.undo()}>Undo</button>
-		<button class="btn preset-filled" onclick={() => s.User.redo()}>Redo</button>
+		<button class="btn preset-filled" onclick={() => s[collectionName].undo()}>Undo</button>
+		<button class="btn preset-filled" onclick={() => s[collectionName].redo()}>Redo</button>
 	</div>
 	<div class="w-192 flex flex-col gap-10">
 		<div class="flex flex-col gap-3">

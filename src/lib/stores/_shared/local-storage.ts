@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { DocumentT, FunctionsT } from '$lib/types/NEW/types';
+import type { DocumentT, FunctionsT } from '$lib/types/generated/types';
 import type { QueryValueObject } from 'fauna';
 
 const set = <T extends QueryValueObject>(key: string, current: DocumentT<T>[]) => {

@@ -20,7 +20,7 @@ import {
 	type Document_ReplaceT,
 	type Document_UpdateT,
 	type ComputedFields
-} from '$lib/types/NEW/types';
+} from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
 
 type Definition = {

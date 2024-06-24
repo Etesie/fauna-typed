@@ -9,7 +9,7 @@ import type {
 	User_Create,
 	User_Replace,
 	User_Update
-} from '$lib/types/NEW/types';
+} from '$lib/types/generated/types';
 
 const baseFields = {
 	id: {
