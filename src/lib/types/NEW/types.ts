@@ -33,7 +33,7 @@ type User_Update = Partial<User_Create>;
 
 /** Used to update documents in Fauna */
 type User_FaunaCreate = Omit<User, 'Account' | 'age'> & {
-	Account: DocumentReference;
+	account: DocumentReference;
 };
 type User_FaunaReplace = User_FaunaCreate;
 type User_FaunaUpdate = Partial<User_FaunaCreate>;

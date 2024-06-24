@@ -24,6 +24,8 @@ import { storage } from './_shared/local-storage';
 
 type Definition = {
 	fields: Fields;
+	computed_fields: any;
+	// TODO: add fomputed_fields
 };
 
 let definition: Definition = {
@@ -34,8 +36,17 @@ let definition: Definition = {
 		lastName: {
 			signature: 'String'
 		},
+		birthday: {
+			signature: 'Date'
+		},
 		account: {
 			signature: 'Ref<Account>?'
+		}
+	},
+	computed_fields: {
+		age: {
+			body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
+			signature: 'Number'
 		}
 	}
 };
