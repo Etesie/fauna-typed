@@ -18,14 +18,14 @@ import {
 	type DocumentT,
 	type Document_CreateT,
 	type Document_ReplaceT,
-	type Document_UpdateT
+	type Document_UpdateT,
+	type ComputedFields
 } from '$lib/types/NEW/types';
 import { storage } from './_shared/local-storage';
 
 type Definition = {
 	fields: Fields;
-	computed_fields: any;
-	// TODO: add fomputed_fields
+	computed_fields: ComputedFields;
 };
 
 let definition: Definition = {

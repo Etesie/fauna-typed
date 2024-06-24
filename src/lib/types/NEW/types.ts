@@ -110,6 +110,15 @@ type Fields = {
 	[key: string]: Field;
 };
 
+type ComputedField = {
+	body: string;
+	signature: string;
+};
+
+type ComputedFields = {
+	[key: string]: ComputedField;
+};
+
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
 
 export {
@@ -135,5 +144,6 @@ export {
 	type FunctionsT,
 	Page,
 	type Fields,
+	type ComputedFields,
 	type Predicate
 };
