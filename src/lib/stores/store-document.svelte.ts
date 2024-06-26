@@ -23,6 +23,8 @@ import {
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
 
+const s = (await import(`$lib/stores`)).stores;
+
 type Definition = {
 	fields: Fields;
 	computed_fields: ComputedFields;
