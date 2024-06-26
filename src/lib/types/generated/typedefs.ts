@@ -23,6 +23,15 @@ export type User_Create = {
 export type User_Replace = User_Create
 export type User_Update = Partial<User_Create>
 
+export type User_FaunaCreate = {
+	firstName: string;
+	lastName: string;
+	birthdate: DateStub;
+	account?: DocumentReference;
+}
+export type User_FaunaReplace = User_FaunaCreate
+export type User_FaunaUpdate = Partial<User_FaunaCreate>
+
 export type Account_Create = {
 	user: User | DocumentReference;
 	provider?: string;
@@ -30,3 +39,11 @@ export type Account_Create = {
 }
 export type Account_Replace = Account_Create
 export type Account_Update = Partial<Account_Create>
+
+export type Account_FaunaCreate = {
+	user: DocumentReference;
+	provider?: string;
+	providerUserId?: string;
+}
+export type Account_FaunaReplace = Account_FaunaCreate
+export type Account_FaunaUpdate = Partial<Account_FaunaCreate>

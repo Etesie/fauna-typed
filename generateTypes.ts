@@ -108,12 +108,19 @@ const generateTypedefs = async () => {
 		const crudTypes = schema
 			.map(({ name, fields }) => {
 				const typeStr = createInterface(name, fields, '_Create');
+				const faunaStr = createInterface(name, fields, '_FaunaCreate');
 
 				return typeStr.concat(
 					'\n',
 					`export type ${name}_Replace = ${name}_Create`,
 					'\n',
-					`export type ${name}_Update = Partial<${name}_Create>`
+					`export type ${name}_Update = Partial<${name}_Create>`,
+					'\n\n',
+					faunaStr,
+					'\n',
+					`export type ${name}_FaunaReplace = ${name}_FaunaCreate`,
+					'\n',
+					`export type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>`
 				);
 			})
 			.join('\n\n');
