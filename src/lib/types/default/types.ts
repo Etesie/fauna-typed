@@ -1,9 +1,13 @@
 import type { Ordering } from '$lib/stores/_shared/order';
+import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
 import {
+	Module,
+	TimeStub,
 	type Document as FaunaDocument,
 	type NamedDocument as FaunaNamedDocument,
 	type QueryValueObject
 } from 'fauna';
+import type { T } from 'vitest/dist/reporters-yx5ZTtEV.js';
 
 type Document = Omit<FaunaDocument, 'toObject'>;
 type Document_Create = Partial<Omit<Document, 'ts' | 'coll'>>;
@@ -24,6 +28,25 @@ type NamedDocument<T extends QueryValueObject> = {
 type NamedDocument_Create<T extends QueryValueObject> = {
 	name: string;
 	data?: T;
+};
+
+type Collection = {
+	name: string;
+	coll: Module;
+	ts: TimeStub;
+	fields: Fields;
+	computed_fields: ComputedFields;
+	constraints: any;
+	migrations: any;
+	indexes: any;
+
+	wildcard: string;
+	ttl_days?: number;
+	history_days?: number;
+	document_ttls?: boolean;
+
+	exists: () => boolean;
+	delete: () => void;
 };
 
 type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
@@ -102,6 +125,10 @@ const baseFields = {
 
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
 
+type DocumentStores = {
+	[key: string]: CreateDocumentStore<any, any, any, any>;
+};
+
 export {
 	type Document,
 	type DocumentT,
@@ -113,5 +140,6 @@ export {
 	type Fields,
 	type ComputedFields,
 	baseFields,
-	type Predicate
+	type Predicate,
+	type DocumentStores
 };
