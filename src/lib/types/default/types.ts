@@ -1,13 +1,6 @@
 import type { Ordering } from '$lib/stores/_shared/order';
 import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
-import {
-	Module,
-	TimeStub,
-	type Document as FaunaDocument,
-	type NamedDocument as FaunaNamedDocument,
-	type QueryValueObject
-} from 'fauna';
-import type { T } from 'vitest/dist/reporters-yx5ZTtEV.js';
+import { Module, TimeStub, type Document as FaunaDocument, type QueryValueObject } from 'fauna';
 
 type Document = Omit<FaunaDocument, 'toObject'>;
 type Document_Create = Partial<Omit<Document, 'ts' | 'coll'>>;
