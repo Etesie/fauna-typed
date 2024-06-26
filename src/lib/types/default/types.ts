@@ -6,6 +6,11 @@ import {
 	type QueryValueObject
 } from 'fauna';
 
+export type Definition = {
+	fields: Fields;
+	computed_fields: ComputedFields;
+};
+
 type Document = Omit<FaunaDocument, 'toObject'>;
 type Document_Create = Partial<Omit<Document, 'ts' | 'coll'>>;
 type Document_Update = Omit<Document_Create, 'id'>;
