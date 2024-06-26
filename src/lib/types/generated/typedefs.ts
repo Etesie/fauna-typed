@@ -1,49 +1,66 @@
-import { type TimeStub, type DateStub, type DocumentReference } from 'fauna'
+import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 
-export type User = {
+type User = {
 	firstName: string;
 	lastName: string;
 	birthdate: DateStub;
 	account?: Account;
 	age: number;
-}
+};
 
-export type Account = {
-	user: User;
-	provider?: string;
-	providerUserId?: string;
-}
-
-export type User_Create = {
+type User_Create = {
 	firstName: string;
 	lastName: string;
 	birthdate: DateStub;
 	account?: Account | DocumentReference;
-}
-export type User_Replace = User_Create
-export type User_Update = Partial<User_Create>
+};
+type User_Replace = User_Create;
+type User_Update = Partial<User_Create>;
 
-export type User_FaunaCreate = {
+type User_FaunaCreate = {
 	firstName: string;
 	lastName: string;
 	birthdate: DateStub;
 	account?: DocumentReference;
-}
-export type User_FaunaReplace = User_FaunaCreate
-export type User_FaunaUpdate = Partial<User_FaunaCreate>
+};
+type User_FaunaReplace = User_FaunaCreate;
+type User_FaunaUpdate = Partial<User_FaunaCreate>;
 
-export type Account_Create = {
+type Account = {
+	user: User;
+	provider?: string;
+	providerUserId?: string;
+};
+
+type Account_Create = {
 	user: User | DocumentReference;
 	provider?: string;
 	providerUserId?: string;
-}
-export type Account_Replace = Account_Create
-export type Account_Update = Partial<Account_Create>
+};
+type Account_Replace = Account_Create;
+type Account_Update = Partial<Account_Create>;
 
-export type Account_FaunaCreate = {
+type Account_FaunaCreate = {
 	user: DocumentReference;
 	provider?: string;
 	providerUserId?: string;
-}
-export type Account_FaunaReplace = Account_FaunaCreate
-export type Account_FaunaUpdate = Partial<Account_FaunaCreate>
+};
+type Account_FaunaReplace = Account_FaunaCreate;
+type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
+
+export type {
+	User,
+	User_Create,
+	User_Update,
+	User_Replace,
+	User_FaunaCreate,
+	User_FaunaUpdate,
+	User_FaunaReplace,
+	Account,
+	Account_Create,
+	Account_Update,
+	Account_Replace,
+	Account_FaunaCreate,
+	Account_FaunaUpdate,
+	Account_FaunaReplace,
+};

@@ -29,7 +29,7 @@ const createInterface = (
 	fields: Field,
 	typeSuffix: '_Create' | '_FaunaCreate' | '' = ''
 ) => {
-	let typeStr = `export type ${name}${typeSuffix} = {\n`;
+	let typeStr = `type ${name}${typeSuffix} = {\n`;
 
 	Object.entries(fields).forEach(([key, value]) => {
 		const signature = value.signature;
@@ -84,7 +84,7 @@ const createInterface = (
 		}
 	});
 
-	return typeStr.concat('}');
+	return typeStr.concat('};');
 };
 
 const generateTypedefs = async () => {
@@ -93,43 +93,64 @@ const generateTypedefs = async () => {
 
 		const schema = await fetchSchema();
 
+		let exportTypeStr = 'export type {';
+
 		// Create types with fields and computed fields
 		const fieldTypes = schema
 			.map(({ name, fields, computed_fields }) => {
+				let genericTypes = '';
+
 				if (computed_fields) {
 					const fieldsData = { ...fields, ...computed_fields };
-					return createInterface(name, fieldsData);
+					genericTypes = createInterface(name, fieldsData);
+				} else {
+					genericTypes = createInterface(name, fields);
 				}
 
-				return createInterface(name, fields);
-			})
-			.join('\n\n');
+				const crudTypeStr = createInterface(name, fields, '_Create');
+				const faunaCrudTypeStr = createInterface(name, fields, '_FaunaCreate');
 
-		const crudTypes = schema
-			.map(({ name, fields }) => {
-				const typeStr = createInterface(name, fields, '_Create');
-				const faunaStr = createInterface(name, fields, '_FaunaCreate');
+				exportTypeStr = exportTypeStr.concat(
+					'\n\t',
+					name,
+					',\n\t',
+					`${name}_Create`,
+					',\n\t',
+					`${name}_Update`,
+					',\n\t',
+					`${name}_Replace`,
+					',\n\t',
+					`${name}_FaunaCreate`,
+					',\n\t',
+					`${name}_FaunaUpdate`,
+					',\n\t',
+					`${name}_FaunaReplace`,
+					','
+				);
 
-				return typeStr.concat(
-					'\n',
-					`export type ${name}_Replace = ${name}_Create`,
-					'\n',
-					`export type ${name}_Update = Partial<${name}_Create>`,
+				return genericTypes.concat(
 					'\n\n',
-					faunaStr,
+					crudTypeStr,
 					'\n',
-					`export type ${name}_FaunaReplace = ${name}_FaunaCreate`,
+					`type ${name}_Replace = ${name}_Create;`,
 					'\n',
-					`export type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>`
+					`type ${name}_Update = Partial<${name}_Create>;`,
+					'\n\n',
+					faunaCrudTypeStr,
+					'\n',
+					`type ${name}_FaunaReplace = ${name}_FaunaCreate;`,
+					'\n',
+					`type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>;`
 				);
 			})
 			.join('\n\n');
 
 		const typesStr =
-			"import { type TimeStub, type DateStub, type DocumentReference } from 'fauna'\n\n".concat(
+			"import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';".concat(
+				'\n\n',
 				fieldTypes,
 				'\n\n',
-				crudTypes
+				`${exportTypeStr}\n};`
 			);
 
 		fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/typedefs.ts`), typesStr, {
