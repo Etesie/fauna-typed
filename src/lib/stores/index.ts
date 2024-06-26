@@ -11,21 +11,6 @@ import type {
 	User_Update
 } from '$lib/types/generated/types';
 
-const baseFields = {
-	id: {
-		signature: 'String'
-	},
-	coll: {
-		signature: 'String'
-	},
-	ts: {
-		signature: 'Timestamp'
-	},
-	ttl: {
-		signature: 'Timestamp'
-	}
-};
-
 const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
 	'Account'
 );
@@ -41,4 +26,4 @@ const stores = {
 	Account: AccountStore.init()
 };
 
-export { stores, asc, desc, baseFields };
+export { stores, asc, desc };

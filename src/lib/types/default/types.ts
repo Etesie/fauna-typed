@@ -1,8 +1,7 @@
 import type { Ordering } from '$lib/stores/_shared/order';
 import {
 	type Document as FaunaDocument,
-	DocumentReference,
-	DateStub,
+	type NamedDocument as FaunaNamedDocument,
 	type QueryValueObject
 } from 'fauna';
 
@@ -14,6 +13,18 @@ type DocumentT<T extends QueryValueObject> = Document & T;
 type Document_CreateT<T extends QueryValueObject> = Document_Create & T;
 type Document_UpdateT<T extends QueryValueObject> = Document_Update & T;
 type Document_ReplaceT<T extends QueryValueObject> = Document_Replace & T;
+
+type NamedDocument<T extends QueryValueObject> = {
+	coll: string;
+	name: string;
+	ts: number;
+	data?: T;
+};
+
+type NamedDocument_Create<T extends QueryValueObject> = {
+	name: string;
+	data?: T;
+};
 
 type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
 	update: (document: Document_UpdateT<T_Update>) => void;
@@ -74,6 +85,21 @@ type ComputedFields = {
 	[key: string]: ComputedField;
 };
 
+const baseFields = {
+	id: {
+		signature: 'String'
+	},
+	coll: {
+		signature: 'String'
+	},
+	ts: {
+		signature: 'Timestamp'
+	},
+	ttl: {
+		signature: 'Timestamp'
+	}
+};
+
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
 
 export {
@@ -86,5 +112,6 @@ export {
 	Page,
 	type Fields,
 	type ComputedFields,
+	baseFields,
 	type Predicate
 };
