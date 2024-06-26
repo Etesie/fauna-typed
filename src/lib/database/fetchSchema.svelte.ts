@@ -1,4 +1,19 @@
-const schema = {
+export type Field = {
+	[key: string]: {
+		signature: string;
+		[key: string]: string;
+	};
+};
+
+export type Schema = {
+	data: {
+		name: string;
+		fields: Field;
+		computed_fields?: Field;
+	}[];
+};
+
+const schema: Schema = {
 	data: [
 		{
 			name: 'User',
@@ -9,8 +24,17 @@ const schema = {
 				lastName: {
 					signature: 'String'
 				},
+				birthdate: {
+					signature: 'Date'
+				},
 				account: {
 					signature: 'Ref<Account>?'
+				}
+			},
+			computed_fields: {
+				age: {
+					body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
+					signature: 'Number'
 				}
 			}
 		},
