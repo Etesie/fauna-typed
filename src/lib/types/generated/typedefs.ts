@@ -3,7 +3,7 @@ import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 type User = {
 	firstName: string;
 	lastName: string;
-	birthdate: DateStub;
+	birthdate: Array<DateStub>;
 	account?: Account;
 	age: number;
 };
@@ -11,7 +11,7 @@ type User = {
 type User_Create = {
 	firstName: string;
 	lastName: string;
-	birthdate: DateStub;
+	birthdate: Array<DateStub>;
 	account?: Account | DocumentReference;
 };
 type User_Replace = User_Create;
@@ -20,7 +20,7 @@ type User_Update = Partial<User_Create>;
 type User_FaunaCreate = {
 	firstName: string;
 	lastName: string;
-	birthdate: DateStub;
+	birthdate: Array<DateStub>;
 	account?: DocumentReference;
 };
 type User_FaunaReplace = User_FaunaCreate;
@@ -62,5 +62,5 @@ export type {
 	Account_Replace,
 	Account_FaunaCreate,
 	Account_FaunaUpdate,
-	Account_FaunaReplace,
+	Account_FaunaReplace
 };
