@@ -19,14 +19,10 @@ import {
 	type Document_CreateT,
 	type Document_ReplaceT,
 	type Document_UpdateT,
-	type ComputedFields
+	type Definition
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
-
-type Definition = {
-	fields: Fields;
-	computed_fields: ComputedFields;
-};
+import { createToDoc } from '$lib/types/converters/createToDoc';
 
 let definition: Definition = {
 	fields: {
@@ -326,19 +322,8 @@ export const createDocumentStore = <
 	): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		let id: string;
-		const ts: TimeStub = TimeStub.fromDate(new Date());
-		const coll: Module = new Module(COLL_NAME);
-		if (doc.id) {
-			id = doc.id;
-		} else {
-			id = 'TEMP_' + crypto.randomUUID();
-		}
-
-		// TODO: We need to identify computed fields like age automatically and replace it
-		const age: number = 0;
 		const newDoc: FunctionsT<DocumentT<T>, T_Replace, T_Update> = new Proxy(
-			{ id, ts, coll, age, ...doc },
+			createToDoc(doc, definition, COLL_NAME),
 			documentHandler
 		);
 
