@@ -66,9 +66,17 @@ const createInterface = (
 				break;
 
 			// Reference type
-			case checkDataType(value.signature, 'Ref<'):
-				typeStr += `\t${keyWithOptionalMark}: ${extractCollectionNameFromRef(signature)};\n`;
+			case checkDataType(value.signature, 'Ref<'): {
+				const collName = extractCollectionNameFromRef(signature);
+				const refType = typeSuffix
+					? typeSuffix === '_Create'
+						? `${collName} | DocumentReference`
+						: 'DocumentReference'
+					: collName;
+
+				typeStr += `\t${keyWithOptionalMark}: ${refType};\n`;
 				break;
+			}
 
 			default:
 				typeStr += `\t${keyWithOptionalMark}: ${signature};\n`;
@@ -97,9 +105,24 @@ const generateTypedefs = async () => {
 			})
 			.join('\n\n');
 
+		const crudTypes = schema
+			.map(({ name, fields }) => {
+				const typeStr = createInterface(name, fields, '_Create');
+
+				return typeStr.concat(
+					'\n',
+					`export type ${name}_Replace = ${name}_Create`,
+					'\n',
+					`export type ${name}_Update = Partial<${name}_Create>`
+				);
+			})
+			.join('\n\n');
+
 		const typesStr =
 			"import { type TimeStub, type DateStub, type DocumentReference } from 'fauna'\n\n".concat(
-				fieldTypes
+				fieldTypes,
+				'\n\n',
+				crudTypes
 			);
 
 		fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/typedefs.ts`), typesStr, {
