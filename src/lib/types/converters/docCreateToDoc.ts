@@ -2,7 +2,7 @@ import Module from "module";
 import type { Definition, Document_CreateT } from "../default/types";
 import { TimeStub, type QueryValueObject } from 'fauna'
 
-export const createToDoc = <
+export const docCreateToDoc = <
   T_Create extends QueryValueObject,
 >(doc: Document_CreateT<T_Create>, definition: Definition, collectionName: string) => {
   let id: string;

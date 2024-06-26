@@ -12,7 +12,6 @@ import { redo, undo } from './_shared/history';
 import {
 	type Predicate,
 	Page,
-	type Fields,
 	type FunctionsT,
 	type Document,
 	type DocumentT,
@@ -22,7 +21,7 @@ import {
 	type Definition
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
-import { createToDoc } from '$lib/types/converters/createToDoc';
+import { docCreateToDoc } from '$lib/types/converters';
 
 let definition: Definition = {
 	fields: {
@@ -323,7 +322,7 @@ export const createDocumentStore = <
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
 		const newDoc: FunctionsT<DocumentT<T>, T_Replace, T_Update> = new Proxy(
-			createToDoc(doc, definition, COLL_NAME),
+			docCreateToDoc(doc, definition, COLL_NAME),
 			documentHandler
 		);
 
