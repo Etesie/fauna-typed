@@ -21,9 +21,7 @@ const extractDataTypeFromNonPrimitiveSignature = (
 	signature: string
 ) => {
 	const regex =
-		signatureType === 'Ref'
-			? /Ref<([^>]+)>/
-			: /Array<([^<>]*(?:<(?:[^<>]+|<(?:[^<>]+)>)*>[^<>]*)*)>/;
+		signatureType === 'Ref' ? /Ref<([^>]+)>/ : /Array<([^<>]*(?:(?:<[^<>]*>)+)?[^<>]*)>/;
 
 	const match = signature.match(regex) as RegExpMatchArray;
 
@@ -48,10 +46,10 @@ const createInterface = (
 
 	Object.entries(fields).forEach(([key, value]) => {
 		const isArray = checkDataType(value.signature, 'Array<');
+		const optionalMark = checkOptional(value.signature) ? '?' : '';
 		const signature = isArray
-			? extractDataTypeFromNonPrimitiveSignature('Array', value.signature)
+			? `${extractDataTypeFromNonPrimitiveSignature('Array', value.signature)}${optionalMark}`
 			: value.signature;
-		const optionalMark = checkOptional(signature) ? '?' : '';
 
 		const keyWithOptionalMark = `${key}${optionalMark}`;
 
