@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { stores as s, asc, desc, baseFields } from '$lib/stores';
 	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import Sort from './sort.svelte';
 	import type { Ordering } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
-	import { page } from '$app/stores';
-	import type { DocumentT, Document_CreateT } from '$lib/types/default/types';
+	import { type DocumentT, type Document_CreateT, baseFields } from '$lib/types/default/types';
 	import type { QueryValueObject } from 'fauna';
+	import { stores as s, asc, desc } from '$lib/stores';
+	import { page } from '$app/stores';
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));
 

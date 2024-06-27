@@ -1,10 +1,6 @@
 import type { Ordering } from '$lib/stores/_shared/order';
-import {
-	type Document as FaunaDocument,
-	DocumentReference,
-	DateStub,
-	type QueryValueObject
-} from 'fauna';
+import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
+import { Module, TimeStub, type Document as FaunaDocument, type QueryValueObject } from 'fauna';
 
 export type Definition = {
 	fields: Fields;
@@ -19,6 +15,37 @@ type DocumentT<T extends QueryValueObject> = Document & T;
 type Document_CreateT<T extends QueryValueObject> = Document_Create & T;
 type Document_UpdateT<T extends QueryValueObject> = Document_Update & T;
 type Document_ReplaceT<T extends QueryValueObject> = Document_Replace & T;
+
+type NamedDocument<T extends QueryValueObject> = {
+	coll: string;
+	name: string;
+	ts: number;
+	data?: T;
+};
+
+type NamedDocument_Create<T extends QueryValueObject> = {
+	name: string;
+	data?: T;
+};
+
+type Collection = {
+	name: string;
+	coll: Module;
+	ts: TimeStub;
+	fields: Fields;
+	computed_fields: ComputedFields;
+	constraints: any;
+	migrations: any;
+	indexes: any;
+
+	wildcard: string;
+	ttl_days?: number;
+	history_days?: number;
+	document_ttls?: boolean;
+
+	exists: () => boolean;
+	delete: () => void;
+};
 
 type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
 	update: (document: Document_UpdateT<T_Update>) => void;
@@ -79,7 +106,26 @@ type ComputedFields = {
 	[key: string]: ComputedField;
 };
 
+const baseFields = {
+	id: {
+		signature: 'String'
+	},
+	coll: {
+		signature: 'String'
+	},
+	ts: {
+		signature: 'Timestamp'
+	},
+	ttl: {
+		signature: 'Timestamp'
+	}
+};
+
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
+
+type DocumentStores = {
+	[key: string]: CreateDocumentStore<any, any, any, any>;
+};
 
 export {
 	type Document,
@@ -91,5 +137,7 @@ export {
 	Page,
 	type Fields,
 	type ComputedFields,
-	type Predicate
+	baseFields,
+	type Predicate,
+	type DocumentStores
 };

@@ -18,10 +18,13 @@ import {
 	type Document_CreateT,
 	type Document_ReplaceT,
 	type Document_UpdateT,
+	type DocumentStores,
 	type Definition
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
 import { docCreateToDoc } from '$lib/types/converters';
+
+let s: DocumentStores;
 
 let definition: Definition = {
 	fields: {
@@ -46,15 +49,13 @@ let definition: Definition = {
 	}
 };
 
-type CreateDocumentStore<
+export type CreateDocumentStore<
 	T extends QueryValueObject,
 	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 > = {
-	init: (
-		accountStore?: DocumentStore<T, T_Create, T_Replace, T_Update>
-	) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
+	init: (stores: DocumentStores) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
 	/**
 	 * Empties the store. Useful if e.g. the user signs out
 	 * @returns
@@ -123,7 +124,8 @@ export const createDocumentStore = <
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'init':
-					return (accountStore?: any) => {
+					return (stores: DocumentStores) => {
+						s = stores;
 						fromLocalStorage();
 						return new Proxy(current, storeHandler);
 					};

@@ -10,21 +10,7 @@ import type {
 	User_Replace,
 	User_Update
 } from '$lib/types/generated/types';
-
-const baseFields = {
-	id: {
-		signature: 'String'
-	},
-	coll: {
-		signature: 'String'
-	},
-	ts: {
-		signature: 'Timestamp'
-	},
-	ttl: {
-		signature: 'Timestamp'
-	}
-};
+import type { DocumentStores } from '$lib/types/default/types';
 
 const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
 	'Account'
@@ -35,10 +21,14 @@ const UserStore = createDocumentStore<User, User_Create, User_Replace, User_Upda
 // collections.data.map((collection) => {
 // 	createDocumentStore(collection.name, collection.definition.fields);
 // });
-
 const stores = {
-	User: UserStore.init(),
-	Account: AccountStore.init()
+	User: UserStore,
+	Account: AccountStore
+} as DocumentStores;
+
+const initializedStores = {
+	User: UserStore.init(stores),
+	Account: AccountStore.init(stores)
 };
 
-export { stores, asc, desc, baseFields };
+export { initializedStores as stores, asc, desc };
