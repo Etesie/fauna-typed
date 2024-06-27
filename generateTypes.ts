@@ -169,7 +169,7 @@ const generateTypedefs = async () => {
 				`${exportTypeStr}\n};`
 			);
 
-		fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/typedefs.ts`), typesStr, {
+		fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/types.ts`), typesStr, {
 			encoding: 'utf-8'
 		});
 	} catch (error) {
