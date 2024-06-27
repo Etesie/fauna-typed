@@ -20,7 +20,10 @@ const extractDataTypeFromNonPrimitiveSignature = (
 	signatureType: 'Ref' | 'Array',
 	signature: string
 ) => {
-	const regex = signatureType === 'Ref' ? /Ref<([^>]+)>/ : /Array<([^<>]*(<[^<>]+>)*[^<>]*)>/;
+	const regex =
+		signatureType === 'Ref'
+			? /Ref<([^>]+)>/
+			: /Array<([^<>]*(?:<(?:[^<>]+|<(?:[^<>]+)>)*>[^<>]*)*)>/;
 
 	const match = signature.match(regex) as RegExpMatchArray;
 
