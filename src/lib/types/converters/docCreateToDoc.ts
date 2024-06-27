@@ -1,6 +1,5 @@
-import Module from "module";
 import type { Definition, Document_CreateT } from "../default/types";
-import { TimeStub, type QueryValueObject } from 'fauna'
+import { Module, TimeStub, type QueryValueObject } from 'fauna'
 
 export const docCreateToDoc = <
   T_Create extends QueryValueObject,
