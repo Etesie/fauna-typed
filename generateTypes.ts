@@ -7,7 +7,7 @@ const checkOptional = (value: string) => {
 	return value.endsWith('?');
 };
 
-// Function to check if value type is primitive
+// Function to check signature of given data type
 const checkDataType = (
 	value: string,
 	expectedType: 'String' | 'Number' | 'Date' | 'Boolean' | 'Time' | 'Ref<' | 'Array<'
@@ -15,7 +15,7 @@ const checkDataType = (
 	return value.startsWith(expectedType);
 };
 
-// Function to extract collection name from a reference string
+// Function to extract collection name from a signature string
 const extractDataTypeFromNonPrimitiveSignature = (
 	signatureType: 'Ref' | 'Array',
 	signature: string
@@ -35,7 +35,7 @@ const constructTypeValue = (value: string, isArray: boolean) => {
 	}
 };
 
-// Function to create an interface string
+// Function to create a type string
 const createInterface = (
 	name: string,
 	fields: Field,
@@ -103,9 +103,7 @@ const createInterface = (
 const generateTypedefs = async () => {
 	try {
 		const dir = `${process.cwd()}/`;
-
 		const schema = await fetchSchema();
-
 		let exportTypeStr = 'export type {';
 
 		// Create types with fields and computed fields
