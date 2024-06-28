@@ -27,19 +27,20 @@ type Collection = {
 	name: string;
 	coll: Module;
 	ts: TimeStub;
-	fields: Fields;
-	computed_fields: ComputedFields;
-	constraints: any;
-	migrations: any;
-	indexes: any;
 
-	wildcard: string;
+	history_days: number;
 	ttl_days?: number;
-	history_days?: number;
 	document_ttls?: boolean;
 
-	exists: () => boolean;
-	delete: () => void;
+	fields?: Fields;
+	computed_fields?: ComputedFields;
+	wildcard?: string;
+	constraints: any[];
+	indexes: any;
+
+	migrations?: any;
+
+	data?: any;
 };
 
 type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
@@ -123,6 +124,7 @@ type DocumentStores = {
 };
 
 export {
+	type Collection,
 	type Document,
 	type DocumentT,
 	type Document_CreateT,

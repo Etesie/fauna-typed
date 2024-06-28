@@ -20,18 +20,18 @@ import {
 	type Document_ReplaceT,
 	type Document_UpdateT,
 	type ComputedFields,
-	type DocumentStores
+	type DocumentStores,
+	type Collection
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
 
 let s: DocumentStores;
 
-type Definition = {
-	fields: Fields;
-	computed_fields: ComputedFields;
-};
-
-let definition: Definition = {
+let definition: Collection = {
+	name: 'User',
+	coll: new Module('Collection'),
+	ts: TimeStub.fromDate(new Date()),
+	history_days: 0,
 	fields: {
 		firstName: {
 			signature: 'String'
@@ -51,7 +51,9 @@ let definition: Definition = {
 			body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
 			signature: 'Number'
 		}
-	}
+	},
+	constraints: [],
+	indexes: {}
 };
 
 export type CreateDocumentStore<
