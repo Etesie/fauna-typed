@@ -24,8 +24,8 @@ const schema: Schema = {
 				lastName: {
 					signature: 'String'
 				},
-				birthdate: {
-					signature: 'Array<Date>'
+				birthday: {
+					signature: 'Date'
 				},
 				account: {
 					signature: 'Ref<Account>?'
