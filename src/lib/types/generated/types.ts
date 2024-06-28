@@ -3,16 +3,16 @@ import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 type User = {
 	firstName: string;
 	lastName: string;
-	birthday: DateStub;
-	account?: Account;
+	birthdate: DateStub;
+	account?: Array<Account>;
 	age: number;
 };
 
 type User_Create = {
 	firstName: string;
 	lastName: string;
-	birthday: DateStub;
-	account?: Account | DocumentReference;
+	birthdate: DateStub;
+	account?: Array<Account | DocumentReference>;
 };
 type User_Replace = User_Create;
 type User_Update = Partial<User_Create>;
@@ -20,8 +20,8 @@ type User_Update = Partial<User_Create>;
 type User_FaunaCreate = {
 	firstName: string;
 	lastName: string;
-	birthday: DateStub;
-	account?: DocumentReference;
+	birthdate: DateStub;
+	account?: Array<DocumentReference>;
 };
 type User_FaunaReplace = User_FaunaCreate;
 type User_FaunaUpdate = Partial<User_FaunaCreate>;

@@ -39,7 +39,7 @@ const constructTypeValue = (value: string, isArray: boolean) => {
 };
 
 // Function to create a type string
-const createInterface = (
+const createType = (
 	name: string,
 	fields: Field,
 	typeSuffix: '_Create' | '_FaunaCreate' | '' = ''
@@ -116,13 +116,13 @@ const generateTypedefs = async () => {
 
 				if (computed_fields) {
 					const fieldsData = { ...fields, ...computed_fields };
-					genericTypes = createInterface(name, fieldsData);
+					genericTypes = createType(name, fieldsData);
 				} else {
-					genericTypes = createInterface(name, fields);
+					genericTypes = createType(name, fields);
 				}
 
-				const crudTypeStr = createInterface(name, fields, '_Create');
-				const faunaCrudTypeStr = createInterface(name, fields, '_FaunaCreate');
+				const crudTypeStr = createType(name, fields, '_Create');
+				const faunaCrudTypeStr = createType(name, fields, '_FaunaCreate');
 
 				exportTypeStr = exportTypeStr.concat(
 					'\n\t',
