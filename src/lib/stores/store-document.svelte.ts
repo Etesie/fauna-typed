@@ -23,6 +23,8 @@ import {
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
 import { docCreateToDoc } from '$lib/types/converters';
+import { docUpdateToDoc } from '$lib/types/converters/docUpdateToDoc';
+import { docReplaceToDoc } from '$lib/types/converters/docReplaceToDoc';
 
 let s: DocumentStores;
 
@@ -400,7 +402,7 @@ export const createDocumentStore = <
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			Object.assign(doc, fields);
+			docUpdateToDoc(doc, fields);
 			toLocalStorage();
 		}
 	};
@@ -409,17 +411,10 @@ export const createDocumentStore = <
 		id: string,
 		fields: Document_ReplaceT<T_Replace>
 	) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
+		const doc = current.find((u) => $state.is(u.id, id));
+		if (doc) {
 			addToPast();
-			Object.assign(current[index], fields);
-			Object.keys(current[index]).forEach((key) => {
-				if (!(key in fields)) {
-					if (key !== 'id' && key !== 'ts' && key !== 'coll') {
-						delete current[index][key];
-					}
-				}
-			});
+			docReplaceToDoc(doc, fields)
 			toLocalStorage();
 		}
 	};
