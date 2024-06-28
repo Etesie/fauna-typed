@@ -38,6 +38,49 @@ const constructTypeValue = (value: string, isArray: boolean) => {
 	}
 };
 
+const getFieldType = (
+	value: string,
+	isArray: boolean,
+	typeSuffix: '_Create' | '_FaunaCreate' | '' = ''
+) => {
+	switch (true) {
+		// String type
+		case checkDataType(value, 'String'):
+			return constructTypeValue('string', isArray);
+
+		// Boolean type
+		case checkDataType(value, 'Boolean'):
+			return constructTypeValue('boolean', isArray);
+
+		// Date type
+		case checkDataType(value, 'Date'):
+			return constructTypeValue('DateStub', isArray);
+
+		// Number type
+		case checkDataType(value, 'Number'):
+			return constructTypeValue('number', isArray);
+
+		// Time type
+		case checkDataType(value, 'Time'):
+			return constructTypeValue('TimeStub', isArray);
+
+		// Reference type
+		case checkDataType(value, 'Ref<'): {
+			const collName = extractDataTypeFromNonPrimitiveSignature('Ref', value);
+			const refType = typeSuffix
+				? typeSuffix === '_Create'
+					? `${collName} | DocumentReference`
+					: 'DocumentReference'
+				: collName;
+
+			return constructTypeValue(refType, isArray);
+		}
+
+		default:
+			return constructTypeValue(value, isArray);
+	}
+};
+
 // Function to create a type string
 const createType = (
 	name: string,
@@ -55,48 +98,15 @@ const createType = (
 
 		const keyWithOptionalMark = `${key}${optionalMark}`;
 
-		switch (true) {
-			// String type
-			case checkDataType(signature, 'String'):
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue('string', isArray)};\n`;
-				break;
+		const isUnionType = signature.includes('|');
+		if (isUnionType) {
+			const signatureTypes = signature.split('|');
 
-			// Boolean type
-			case checkDataType(signature, 'Boolean'):
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue('boolean', isArray)};\n`;
-				break;
+			const types = signatureTypes.map((type) => getFieldType(type.trim(), isArray, typeSuffix));
 
-			// Date type
-			case checkDataType(signature, 'Date'):
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue('DateStub', isArray)};\n`;
-				break;
-
-			// Number type
-			case checkDataType(signature, 'Number'):
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue('number', isArray)};\n`;
-				break;
-
-			// Time type
-			case checkDataType(signature, 'Time'):
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue('TimeStub', isArray)};\n`;
-				break;
-
-			// Reference type
-			case checkDataType(signature, 'Ref<'): {
-				const collName = extractDataTypeFromNonPrimitiveSignature('Ref', signature);
-				const refType = typeSuffix
-					? typeSuffix === '_Create'
-						? `${collName} | DocumentReference`
-						: 'DocumentReference'
-					: collName;
-
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue(refType, isArray)};\n`;
-				break;
-			}
-
-			default:
-				typeStr += `\t${keyWithOptionalMark}: ${constructTypeValue(signature, isArray)};\n`;
-				break;
+			typeStr += `\t${keyWithOptionalMark}: ${types.join(' | ')};\n`;
+		} else {
+			typeStr += `\t${keyWithOptionalMark}: ${getFieldType(signature, isArray, typeSuffix)};\n`;
 		}
 	});
 
