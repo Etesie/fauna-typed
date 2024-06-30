@@ -68,13 +68,7 @@ type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValu
 	update: (document: Document_Update<T_Update>) => void;
 	replace: (document: Document_Update<T_Replace>) => void;
 	delete: () => void;
-};
-
-type FunctionsT<
-	T,
-	T_Replace extends QueryValueObject,
-	T_Update extends QueryValueObject
-> = Functions<T, T_Replace, T_Update> & T;
+} & T;
 
 class Page<T extends QueryValueObject> {
 	data: T[];
@@ -157,7 +151,7 @@ export {
 	type Document_Create,
 	type Document_Update,
 	type Document_Replace,
-	type FunctionsT,
+	type Functions,
 	Page,
 	type Fields,
 	type ComputedFields,
