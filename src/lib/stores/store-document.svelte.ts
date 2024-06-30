@@ -1,11 +1,4 @@
-import {
-	Module,
-	type QuerySuccess,
-	TimeStub,
-	DocumentReference,
-	DateStub,
-	type QueryValueObject
-} from 'fauna';
+import { Module, type QuerySuccess, TimeStub, type QueryValueObject } from 'fauna';
 import { client, fql } from '../database/client';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
@@ -22,37 +15,10 @@ import {
 	type NamedDocument
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
+import { createCollectionStore } from './collection.svelte';
 
 let s: DocumentStores;
-
-let definition: NamedDocument<Collection> = {
-	name: 'User',
-	coll: new Module('Collection'),
-	ts: TimeStub.fromDate(new Date()),
-	history_days: 0,
-	fields: {
-		firstName: {
-			signature: 'String'
-		},
-		lastName: {
-			signature: 'String'
-		},
-		birthday: {
-			signature: 'Date'
-		},
-		account: {
-			signature: 'Ref<Account>?'
-		}
-	},
-	computed_fields: {
-		age: {
-			body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
-			signature: 'Number'
-		}
-	},
-	constraints: [],
-	indexes: {}
-};
+let Collection = createCollectionStore().init();
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -104,6 +70,8 @@ export const createDocumentStore = <
 	collectionName: string
 ): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
 	const COLL_NAME: string = collectionName;
+
+	const definition: NamedDocument<Collection> = Collection.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -189,7 +157,8 @@ export const createDocumentStore = <
 
 				case 'definition':
 					// TODO: Get definition from Fauna
-					return new Proxy(s.Collection.byName(COLL_NAME), definitionHandler);
+					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
+					return definition;
 
 				/*************
 				 * Undo/Redo
@@ -230,48 +199,21 @@ export const createDocumentStore = <
 		}
 	};
 
-	function createPageHandler<T extends QueryValueObject>() {
-		return {
-			get(target: Page<T>, prop: keyof Page<T>, receiver: any): any {
-				switch (prop) {
-					case 'data':
-						return new Proxy(target.data, arrayHandler);
-					case 'after':
-						return target.after;
-					case 'order':
-						return (...orderings: Ordering<T>[]) => {
-							target.order(...orderings); // Use the Page class's order method
-							return new Proxy(target, createPageHandler<T>()); // Return a proxy to allow chaining
-						};
-					default:
-						return Reflect.get(target, prop, receiver);
-				}
-			}
-		};
-	}
-
-	const pageHandler = createPageHandler<Functions<Document<T>, T_Replace, T_Update>>();
-
-	const arrayHandler = {
-		get(target: any, prop: any, receiver: any): any {
+	const pageHandler = {
+		get(target: Page<T>, prop: keyof Page<T>, receiver: any): any {
 			switch (prop) {
-				case 'at':
-					return (index: number) => {
-						if (target.at(index) != null) {
-							return target.at(index);
-						} else {
-							target.at(index);
-						}
+				case 'data':
+					return target.data;
+				case 'after':
+					return target.after;
+				case 'order':
+					return (...orderings: Ordering<T>[]) => {
+						target.order(...orderings); // Use the Page class's order method
+						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
 					};
 				default:
 					return Reflect.get(target, prop, receiver);
 			}
-		}
-	};
-
-	const definitionHandler = {
-		get(target: any, prop: any, receiver: any): any {
-			return Reflect.get(target, prop, receiver);
 		}
 	};
 
@@ -348,7 +290,7 @@ export const createDocumentStore = <
 			current.push(newDoc);
 		}
 		toLocalStorage();
-		const updatedDoc = current.find((u) => $state.is(u.id, newDoc.id));
+		const updatedDoc = current.find((doc) => $state.is(doc.id, newDoc.id));
 		if (!updatedDoc) {
 			throw new Error('Document not found after upsert');
 		}
@@ -404,15 +346,13 @@ export const createDocumentStore = <
 		return updatedDoc;
 	};
 
-	const updateObject = <T_Update extends QueryValueObject>(
-		id: string,
-		fields: Document_Update<T_Update>
-	) => {
+	const updateObject = (id: string, fields: Document_Update<T_Update>) => {
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
 			Object.assign(doc, fields);
 			toLocalStorage();
+			return doc;
 		}
 	};
 
@@ -455,14 +395,6 @@ export const createDocumentStore = <
 				upsertObjectFromStorage(parsedDocument);
 			});
 		}
-
-		// Only as workaround until @link https://github.com/sveltejs/svelte/issues/11964 is resolved
-		upsertObjectFromClient({
-			firstName: 'John',
-			lastName: 'Doe',
-			birthdate: DateStub.fromDate(new Date('1990-01-01')),
-			account: new DocumentReference({ coll: 'Account', id: '1' })
-		});
 	};
 
 	/**

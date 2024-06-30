@@ -2,6 +2,10 @@
 	import { page } from '$app/stores';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { goto } from '$app/navigation';
+	import { createCollectionStore } from '$lib/stores/collection.svelte';
+
+	let Collection = createCollectionStore().init();
+	let allCollections = $state(Collection.all().data);
 
 	let group = $state($page.url.searchParams.get('coll'));
 	let { children } = $props();
@@ -15,10 +19,15 @@
 
 <Tabs>
 	{#snippet list()}
-		<Tabs.Control bind:group name="User" onclick={() => handleTabClick('User')}>User</Tabs.Control>
-		<Tabs.Control bind:group name="Account" onclick={() => handleTabClick('Account')}
-			>Account</Tabs.Control
-		>
+		{#each allCollections as collection}
+			<Tabs.Control
+				bind:group
+				name={collection.name}
+				onclick={() => handleTabClick(collection.name)}
+			>
+				{collection.name}
+			</Tabs.Control>
+		{/each}
 	{/snippet}
 </Tabs>
 {@render children()}
