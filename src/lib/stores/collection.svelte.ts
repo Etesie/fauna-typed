@@ -10,7 +10,7 @@ import {
 	type NamedDocument_Replace,
 	type NamedDocument_Update,
 	type Predicate
-} from '$lib/types/default/types';
+} from '$lib/types/types';
 import { Module, TimeStub } from 'fauna';
 import { storage } from './_shared/local-storage';
 import type { Ordering } from './_shared/order';

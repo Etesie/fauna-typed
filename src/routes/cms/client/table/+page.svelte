@@ -4,9 +4,9 @@
 	import Sort from './sort.svelte';
 	import type { Ordering } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
-	import { type Document, type Document_Create, baseFields } from '$lib/types/default/types';
+	import { type Document, type Document_Create, baseFields } from '$lib/types/types';
 	import type { QueryValueObject } from 'fauna';
-	import { s, asc, desc } from '$lib/stores';
+	import { s, asc, desc } from '$fauna-typed/stores';
 	import { page } from '$app/stores';
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));

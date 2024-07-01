@@ -1,5 +1,5 @@
 import { expect, it, test } from 'vitest';
-import { User } from './stores';
+import { User } from '../fauna-typed/stores';
 import { fromLocalStorage, toLocalStorage } from './stores/store-document.svelte';
 
 /**

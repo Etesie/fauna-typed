@@ -13,7 +13,7 @@ import {
 	type DocumentStores,
 	type Collection,
 	type NamedDocument
-} from '$lib/types/default/types';
+} from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 
