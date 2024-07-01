@@ -6,9 +6,9 @@
 	const createTypes = async () => {
 		try {
 			const res = await fetch('/api/types');
-			const parsedRes = await res.json();
+			const genetatedTypesRes = await res.json();
 
-			console.log({ parsedRes });
+			console.log({ genetatedTypesRes });
 		} catch (error) {
 			console.log('Error in createTypes:', error);
 		}
