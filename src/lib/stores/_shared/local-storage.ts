@@ -1,10 +1,9 @@
+import { browser } from '$app/environment';
 import type { Document, Functions } from '$lib/types/default/types';
 import type { QueryValueObject } from 'fauna';
 
-const isBrowser = () => typeof window !== 'undefined';
-
 const set = <T extends QueryValueObject>(key: string, current: Document<T>[]) => {
-	if (isBrowser()) {
+	if (browser) {
 		localStorage.setItem(key, JSON.stringify(current));
 	}
 };
@@ -16,7 +15,7 @@ const get = <
 >(
 	key: string
 ) => {
-	if (isBrowser()) {
+	if (browser) {
 		const storedData = localStorage.getItem(key);
 		if (storedData) {
 			try {

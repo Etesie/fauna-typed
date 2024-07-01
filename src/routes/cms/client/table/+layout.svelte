@@ -2,12 +2,17 @@
 	import { page } from '$app/stores';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { goto } from '$app/navigation';
-	import { createCollectionStore } from '$lib/stores/collection.svelte';
+	import { s } from '$lib/stores';
 
-	let Collection = createCollectionStore().init();
-	let allCollections = $state(Collection.all().data);
+	let allCollections = $state(s.Collection.all().data);
 
 	let group = $state($page.url.searchParams.get('coll'));
+	if (!group) {
+		const url = new URL(window.location.href);
+		group = allCollections[0].name;
+		url.searchParams.set('coll', allCollections[0].name);
+	}
+
 	let { children } = $props();
 
 	function handleTabClick(tabName: string) {
