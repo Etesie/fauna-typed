@@ -1,26 +1,26 @@
 <script lang="ts">
-	import { stores as s, asc, desc, baseFields } from '$lib/stores';
 	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import Sort from './sort.svelte';
 	import type { Ordering } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
-	import { page } from '$app/stores';
-	import type { DocumentT, Document_CreateT } from '$lib/types/default/types';
+	import { type Document, type Document_Create, baseFields } from '$lib/types/default/types';
 	import type { QueryValueObject } from 'fauna';
+	import { stores as s, asc, desc } from '$lib/stores';
+	import { page } from '$app/stores';
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));
 
-	const docFields = Object.entries(s[collectionName].definition.fields);
-	const allFields = [...Object.entries(baseFields), ...docFields];
+	const docFields = $derived(Object.entries(s[collectionName].definition.fields));
+	const allFields = $derived([...Object.entries(baseFields), ...docFields]);
 
-	const allKeys = allFields.map((field) => field[0] as keyof DocumentT<QueryValueObject>);
+	const allKeys = $derived(allFields.map((field) => field[0] as keyof Document<QueryValueObject>));
 
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
 	};
 
-	type CollectionFilter = StringifyProperties<DocumentT<QueryValueObject>>;
+	type CollectionFilter = StringifyProperties<Document<QueryValueObject>>;
 
 	const createEmptyFilter = (): CollectionFilter => {
 		const filter: Partial<CollectionFilter> = {};
@@ -62,7 +62,7 @@
 		s[collectionName].where(getWherePredicate(allKeys, filter)).order(...getSorters(sorter))
 	);
 
-	let newDoc = $state<Document_CreateT<any>>({});
+	let newDoc = $state<Document_Create<any>>({});
 
 	async function createDoc() {
 		console.log('New doc: ', newDoc);

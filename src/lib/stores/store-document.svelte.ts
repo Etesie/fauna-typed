@@ -1,65 +1,32 @@
-import {
-	Module,
-	type QuerySuccess,
-	TimeStub,
-	DocumentReference,
-	DateStub,
-	type QueryValueObject
-} from 'fauna';
+import { Module, type QuerySuccess, TimeStub, type QueryValueObject } from 'fauna';
 import { client, fql } from '../database/client';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
 	type Predicate,
 	Page,
-	type Fields,
-	type FunctionsT,
+	type Functions,
 	type Document,
-	type DocumentT,
-	type Document_CreateT,
-	type Document_ReplaceT,
-	type Document_UpdateT,
-	type ComputedFields
+	type Document_Create,
+	type Document_Replace,
+	type Document_Update,
+	type DocumentStores,
+	type Collection,
+	type NamedDocument
 } from '$lib/types/default/types';
 import { storage } from './_shared/local-storage';
+import { createCollectionStore } from './collection.svelte';
 
-type Definition = {
-	fields: Fields;
-	computed_fields: ComputedFields;
-};
+let s: DocumentStores;
+let Collection = createCollectionStore().init();
 
-let definition: Definition = {
-	fields: {
-		firstName: {
-			signature: 'String'
-		},
-		lastName: {
-			signature: 'String'
-		},
-		birthday: {
-			signature: 'Date'
-		},
-		account: {
-			signature: 'Ref<Account>?'
-		}
-	},
-	computed_fields: {
-		age: {
-			body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
-			signature: 'Number'
-		}
-	}
-};
-
-type CreateDocumentStore<
+export type CreateDocumentStore<
 	T extends QueryValueObject,
 	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 > = {
-	init: (
-		accountStore?: DocumentStore<T, T_Create, T_Replace, T_Update>
-	) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
+	init: (stores: DocumentStores) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
 	/**
 	 * Empties the store. Useful if e.g. the user signs out
 	 * @returns
@@ -74,14 +41,14 @@ type DocumentStore<
 	T_Update extends QueryValueObject
 > = {
 	// byId: (id: string) => FunctionsT<DocumentT<T>>;
-	byId: (id: string) => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
-	first: () => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
-	last: () => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
-	all: () => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>;
-	paginate: (after: string) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>; // TODO: To be implemented
-	where: (filter: Predicate<DocumentT<T>>) => Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>;
-	create: (doc: Document_CreateT<T_Create>) => FunctionsT<DocumentT<T>, T_Replace, T_Update>;
-	definition: Definition;
+	byId: (id: string) => Functions<Document<T>, T_Replace, T_Update>;
+	first: () => Functions<Document<T>, T_Replace, T_Update>;
+	last: () => Functions<Document<T>, T_Replace, T_Update>;
+	all: () => Page<Functions<Document<T>, T_Replace, T_Update>>;
+	paginate: (after: string) => Page<Functions<Document<T>, T_Replace, T_Update>>; // TODO: To be implemented
+	where: (filter: Predicate<Document<T>>) => Page<Functions<Document<T>, T_Replace, T_Update>>;
+	create: (doc: Document_Create<T_Create>) => Functions<Document<T>, T_Replace, T_Update>;
+	definition: NamedDocument<Collection>;
 
 	undo: () => void;
 	redo: () => void;
@@ -104,31 +71,34 @@ export const createDocumentStore = <
 ): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
 	const COLL_NAME: string = collectionName;
 
+	const definition: NamedDocument<Collection> = Collection.byName(COLL_NAME);
+
 	/**
 	 * Used to determine the current state of the store
 	 */
-	let current = $state<FunctionsT<DocumentT<T>, T_Replace, T_Update>[]>([]);
+	let current = $state<Functions<Document<T>, T_Replace, T_Update>[]>([]);
 
 	/**
 	 * Used for undo functionality
 	 */
-	let past = $state<[FunctionsT<DocumentT<T>, T_Replace, T_Update>[]?]>([]);
+	let past = $state<[Functions<Document<T>, T_Replace, T_Update>[]?]>([]);
 
 	/**
 	 * Used for redo functionality
 	 */
-	let future = $state<[FunctionsT<DocumentT<T>, T_Replace, T_Update>[]?]>([]);
+	let future = $state<[Functions<Document<T>, T_Replace, T_Update>[]?]>([]);
 
 	/**
 	 * Stores all documents retrieved from the database unchanged. Used as a reference to determine the difference to "current" in order to determine which documents need to be updated, deleted or created in the database when the "sync" function is called.
 	 */
-	const database = $state<FunctionsT<DocumentT<T>, T_Replace, T_Update>[]>([]);
+	const database = $state<Functions<Document<T>, T_Replace, T_Update>[]>([]);
 
 	const createStoreHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'init':
-					return (accountStore?: any) => {
+					return (stores: DocumentStores) => {
+						s = stores;
 						fromLocalStorage();
 						return new Proxy(current, storeHandler);
 					};
@@ -165,7 +135,7 @@ export const createDocumentStore = <
 
 				case 'all':
 					return () => {
-						const result = new Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>(
+						const result = new Page<Functions<Document<T>, T_Replace, T_Update>>(
 							current,
 							undefined
 						);
@@ -174,25 +144,21 @@ export const createDocumentStore = <
 					};
 
 				case 'where':
-					return (filter: Predicate<DocumentT<T>>) => {
+					return (filter: Predicate<Document<T>>) => {
 						const result = new Page(getObjects(filter), undefined);
 						// fetchWhereFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'create':
-					return (document: Document_CreateT<T_Create>) => {
+					return (document: Document_Create<T_Create>) => {
 						return upsertObjectFromClient(document);
 					};
 
 				case 'definition':
 					// TODO: Get definition from Fauna
-					return new Proxy(
-						{
-							fields: definition.fields
-						},
-						definitionHandler
-					);
+					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
+					return definition;
 
 				/*************
 				 * Undo/Redo
@@ -233,48 +199,21 @@ export const createDocumentStore = <
 		}
 	};
 
-	function createPageHandler<T extends Document>() {
-		return {
-			get(target: Page<T>, prop: keyof Page<T>, receiver: any): any {
-				switch (prop) {
-					case 'data':
-						return new Proxy(target.data, arrayHandler);
-					case 'after':
-						return target.after;
-					case 'order':
-						return (...orderings: Ordering<T>[]) => {
-							target.order(...orderings); // Use the Page class's order method
-							return new Proxy(target, createPageHandler<T>()); // Return a proxy to allow chaining
-						};
-					default:
-						return Reflect.get(target, prop, receiver);
-				}
-			}
-		};
-	}
-
-	const pageHandler = createPageHandler<FunctionsT<DocumentT<T>, T_Replace, T_Update>>();
-
-	const arrayHandler = {
-		get(target: any, prop: any, receiver: any): any {
+	const pageHandler = {
+		get(target: Page<T>, prop: keyof Page<T>, receiver: any): any {
 			switch (prop) {
-				case 'at':
-					return (index: number) => {
-						if (target.at(index) != null) {
-							return target.at(index);
-						} else {
-							target.at(index);
-						}
+				case 'data':
+					return target.data;
+				case 'after':
+					return target.after;
+				case 'order':
+					return (...orderings: Ordering<T>[]) => {
+						target.order(...orderings); // Use the Page class's order method
+						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
 					};
 				default:
 					return Reflect.get(target, prop, receiver);
 			}
-		}
-	};
-
-	const definitionHandler = {
-		get(target: any, prop: any, receiver: any): any {
-			return Reflect.get(target, prop, receiver);
 		}
 	};
 
@@ -286,12 +225,12 @@ export const createDocumentStore = <
 				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
 				 */
 				case 'update':
-					return (doc: Document_UpdateT<T_Update>): void => {
+					return (doc: Document_Update<T_Update>): void => {
 						console.log('update target', target.id);
 						return updateObject(target.id, doc);
 					};
 				case 'replace':
-					return (doc: Document_ReplaceT<T_Replace>): void => {
+					return (doc: Document_Replace<T_Replace>): void => {
 						console.log('replace target', target.id);
 						return replaceObject(target.id, doc);
 					};
@@ -311,8 +250,8 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		filter: Predicate<DocumentT<T>>
-	): FunctionsT<DocumentT<T>, T_Replace, T_Update>[] => {
+		filter: Predicate<Document<T>>
+	): Functions<Document<T>, T_Replace, T_Update>[] => {
 		return current.filter(filter);
 	};
 
@@ -322,8 +261,8 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		doc: Document_CreateT<T_Create>
-	): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
+		doc: Document_Create<T_Create>
+	): Functions<Document<T>, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
 		let id: string;
@@ -337,7 +276,7 @@ export const createDocumentStore = <
 
 		// TODO: We need to identify computed fields like age automatically and replace it
 		const age: number = 0;
-		const newDoc: FunctionsT<DocumentT<T>, T_Replace, T_Update> = new Proxy(
+		const newDoc: Functions<Document<T>, T_Replace, T_Update> = new Proxy(
 			{ id, ts, coll, age, ...doc },
 			documentHandler
 		);
@@ -351,7 +290,7 @@ export const createDocumentStore = <
 			current.push(newDoc);
 		}
 		toLocalStorage();
-		const updatedDoc = current.find((u) => $state.is(u.id, newDoc.id));
+		const updatedDoc = current.find((doc) => $state.is(doc.id, newDoc.id));
 		if (!updatedDoc) {
 			throw new Error('Document not found after upsert');
 		}
@@ -363,8 +302,8 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		doc: FunctionsT<DocumentT<T>, T_Replace, T_Update>
-	): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
+		doc: Functions<Document<T>, T_Replace, T_Update>
+	): Functions<Document<T>, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const proxiedDoc = new Proxy(doc, documentHandler);
 
@@ -387,8 +326,8 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		doc: FunctionsT<DocumentT<T>, T_Replace, T_Update>
-	): FunctionsT<DocumentT<T>, T_Replace, T_Update> => {
+		doc: Functions<Document<T>, T_Replace, T_Update>
+	): Functions<Document<T>, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const proxiedDoc = new Proxy(doc, documentHandler);
 
@@ -407,21 +346,19 @@ export const createDocumentStore = <
 		return updatedDoc;
 	};
 
-	const updateObject = <T_Update extends QueryValueObject>(
-		id: string,
-		fields: Document_UpdateT<T_Update>
-	) => {
+	const updateObject = (id: string, fields: Document_Update<T_Update>) => {
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
 			Object.assign(doc, fields);
 			toLocalStorage();
+			return doc;
 		}
 	};
 
 	const replaceObject = <T_Replace extends QueryValueObject>(
 		id: string,
-		fields: Document_ReplaceT<T_Replace>
+		fields: Document_Replace<T_Replace>
 	) => {
 		const index = current.findIndex((u) => $state.is(u.id, id));
 		if (index !== -1) {
@@ -458,14 +395,6 @@ export const createDocumentStore = <
 				upsertObjectFromStorage(parsedDocument);
 			});
 		}
-
-		// Only as workaround until @link https://github.com/sveltejs/svelte/issues/11964 is resolved
-		upsertObjectFromClient({
-			firstName: 'John',
-			lastName: 'Doe',
-			birthdate: DateStub.fromDate(new Date('1990-01-01')),
-			account: new DocumentReference({ coll: 'Account', id: '1' })
-		});
 	};
 
 	/**
@@ -481,10 +410,10 @@ export const createDocumentStore = <
 	};
 
 	// TODO: change type to T
-	async function fetchAllFromDB(page: Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>) {
+	async function fetchAllFromDB(page: Page<Functions<Document<T>, T_Replace, T_Update>>) {
 		try {
-			const response: QuerySuccess<Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>> =
-				await client.query<Page<FunctionsT<DocumentT<T>, T_Replace, T_Update>>>(fql`User.all()`);
+			const response: QuerySuccess<Page<Functions<Document<T>, T_Replace, T_Update>>> =
+				await client.query<Page<Functions<Document<T>, T_Replace, T_Update>>>(fql`User.all()`);
 			if (response.data) {
 				// const data: User[] = response.data.data.map(
 				// 	(userWithoutMethods) => new User(userWithoutMethods)

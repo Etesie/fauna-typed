@@ -1,33 +1,76 @@
 import type { Ordering } from '$lib/stores/_shared/order';
-import {
-	type Document as FaunaDocument,
-	DocumentReference,
-	DateStub,
-	type QueryValueObject
-} from 'fauna';
+import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
+import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
-type Document = Omit<FaunaDocument, 'toObject'>;
-type Document_Create = Partial<Omit<Document, 'ts' | 'coll'>>;
-type Document_Update = Omit<Document_Create, 'id'>;
-type Document_Replace = Document_Update;
-type DocumentT<T extends QueryValueObject> = Document & T;
-type Document_CreateT<T extends QueryValueObject> = Document_Create & T;
-type Document_UpdateT<T extends QueryValueObject> = Document_Update & T;
-type Document_ReplaceT<T extends QueryValueObject> = Document_Replace & T;
+type Document<T extends QueryValueObject> = {
+	id: string;
+	coll: Module;
+	ts: TimeStub;
+	ttl?: TimeStub;
+} & T;
+type Document_Create<T extends QueryValueObject> = Partial<Omit<Document<T>, 'ts' | 'coll'>>;
+type Document_Update<T extends QueryValueObject> = Omit<Document_Create<T>, 'id'>;
+type Document_Replace<T extends QueryValueObject> = Document_Update<T>;
 
-type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
-	update: (document: Document_UpdateT<T_Update>) => void;
-	replace: (document: Document_UpdateT<T_Replace>) => void;
-	delete: () => void;
+type NamedDocument<
+	T extends QueryValueObject,
+	T_Metadata extends QueryValueObject = Record<string, never>
+> = {
+	coll: Module;
+	name: string;
+	ts: TimeStub;
+} & T & {
+		data?: T_Metadata;
+	};
+
+type NamedDocument_Create<
+	T extends QueryValueObject,
+	T_Metadata extends QueryValueObject = Record<string, never>
+> = {
+	name: string;
+} & T & {
+		data?: T_Metadata;
+	};
+
+type NamedDocument_Update<
+	T extends QueryValueObject,
+	T_Metadata extends QueryValueObject = Record<string, never>
+> = {
+	name?: string;
+} & T & {
+		data?: T_Metadata;
+	};
+
+type NamedDocument_Replace<
+	T extends QueryValueObject,
+	T_Metadata extends QueryValueObject = Record<string, never>
+> = NamedDocument_Update<T, T_Metadata>;
+
+type Collection = {
+	history_days: number;
+	ttl_days?: number;
+	document_ttls?: boolean;
+
+	fields?: Fields;
+	computed_fields?: ComputedFields;
+	wildcard?: string;
+	constraints: any[];
+	indexes: any;
+
+	migrations?: any;
 };
 
-type FunctionsT<
-	T,
-	T_Replace extends QueryValueObject,
-	T_Update extends QueryValueObject
-> = Functions<T, T_Replace, T_Update> & T;
+type Collection_Create = Partial<Collection>;
+type Collection_Update = Partial<Collection>;
+type Collection_Replace = Partial<Collection>;
 
-class Page<T extends Document> {
+type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
+	update: (document: Document_Update<T_Update>) => void;
+	replace: (document: Document_Update<T_Replace>) => void;
+	delete: () => void;
+} & T;
+
+class Page<T extends QueryValueObject> {
 	data: T[];
 	after?: string;
 
@@ -74,17 +117,45 @@ type ComputedFields = {
 	[key: string]: ComputedField;
 };
 
+const baseFields = {
+	id: {
+		signature: 'String'
+	},
+	coll: {
+		signature: 'String'
+	},
+	ts: {
+		signature: 'Timestamp'
+	},
+	ttl: {
+		signature: 'Timestamp'
+	}
+};
+
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
 
+type DocumentStores = {
+	[key: string]: CreateDocumentStore<any, any, any, any>;
+};
+
 export {
+	type NamedDocument,
+	type NamedDocument_Create,
+	type NamedDocument_Update,
+	type NamedDocument_Replace,
+	type Collection,
+	type Collection_Create,
+	type Collection_Update,
+	type Collection_Replace,
 	type Document,
-	type DocumentT,
-	type Document_CreateT,
-	type Document_UpdateT,
-	type Document_ReplaceT,
-	type FunctionsT,
+	type Document_Create,
+	type Document_Update,
+	type Document_Replace,
+	type Functions,
 	Page,
 	type Fields,
 	type ComputedFields,
-	type Predicate
+	baseFields,
+	type Predicate,
+	type DocumentStores
 };
