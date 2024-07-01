@@ -1,3 +1,4 @@
+import { createCollectionStore } from './collection.svelte';
 import { createDocumentStore } from './store-document.svelte';
 import { asc, desc } from './_shared/order';
 import type {
@@ -11,6 +12,8 @@ import type {
 	User_Update
 } from '$lib/types/generated/types';
 import type { DocumentStores } from '$lib/types/default/types';
+
+let Collection = createCollectionStore().init();
 
 const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
 	'Account'
@@ -27,6 +30,7 @@ const stores = {
 } as DocumentStores;
 
 const initializedStores = {
+	Collection: Collection,
 	User: UserStore.init(stores),
 	Account: AccountStore.init(stores)
 };
