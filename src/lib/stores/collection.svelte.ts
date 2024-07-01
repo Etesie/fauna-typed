@@ -147,16 +147,16 @@ upsertObjectFromClient({
 		lastName: {
 			signature: 'String'
 		},
-		birthday: {
+		birthdate: {
 			signature: 'Date'
 		},
 		account: {
-			signature: 'Ref<Account>?'
+			signature: 'Array<Ref<Account>>?'
 		}
 	},
 	computed_fields: {
 		age: {
-			body: '(doc) => (Date.today().difference(doc.birthday) / 365)',
+			body: '(doc) => (Date.today().difference(doc.birthdate) / 365)',
 			signature: 'Number'
 		}
 	}
@@ -172,7 +172,7 @@ upsertObjectFromClient({
 			signature: 'String'
 		},
 		providerUserId: {
-			signature: 'Date'
+			signature: 'String'
 		}
 	}
 });
