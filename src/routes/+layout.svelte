@@ -1,20 +1,19 @@
 <script>
-	import { onMount } from 'svelte';
 	import '../app.css';
 
 	// TODO: Move this to src\lib\stores\index.ts
 	const createTypes = async () => {
 		try {
 			const res = await fetch('/api/types');
-			const genetatedTypesRes = await res.json();
+			const generatedTypesRes = await res.json();
 
-			console.log({ genetatedTypesRes });
+			console.log({ generatedTypesRes });
 		} catch (error) {
 			console.log('Error in createTypes:', error);
 		}
 	};
 
-	onMount(() => {
+	$effect(() => {
 		createTypes();
 	});
 </script>
