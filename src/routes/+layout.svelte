@@ -1,6 +1,8 @@
 <script>
+	import { onMount } from 'svelte';
 	import '../app.css';
 
+	// TODO: Move this to src\lib\stores\index.ts
 	const createTypes = async () => {
 		try {
 			const res = await fetch('/api/types');
@@ -11,9 +13,12 @@
 			console.log('Error in createTypes:', error);
 		}
 	};
+
+	onMount(() => {
+		createTypes();
+	});
 </script>
 
-<button class="btn bg-amber-400" on:click={createTypes}>Create Types</button>
 <slot></slot>
 
 <style></style>
