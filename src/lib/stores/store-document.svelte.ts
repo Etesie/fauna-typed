@@ -389,7 +389,7 @@ export const createDocumentStore = <
 	};
 
 	const fromLocalStorage = <T extends QueryValueObject>() => {
-		const parsedDocuments = storage.get<T>(COLL_NAME);
+		const parsedDocuments = storage.get<T, T_Replace, T_Update>(COLL_NAME);
 		if (parsedDocuments) {
 			parsedDocuments.forEach((parsedDocument) => {
 				upsertObjectFromStorage(parsedDocument);
