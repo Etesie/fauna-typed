@@ -3,6 +3,7 @@ import type { Fields } from '$lib/types/default/types';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
+import * as env from '$env/static/public';
 
 const Collection = createCollectionStore().init();
 
@@ -118,6 +119,15 @@ const createType = (
 };
 
 export const GET: RequestHandler = async () => {
+	if (env?.PUBLIC_NODE_ENV !== 'development') {
+		return new Response(JSON.stringify({ message: 'Ok' }), {
+			status: 200,
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+	}
+
 	try {
 		const dir = `${process.cwd()}/`;
 		const schema = Collection.all().data;
