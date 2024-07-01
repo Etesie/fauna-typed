@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { Field, fetchSchema } from './src/lib/database/fetchSchema.svelte';
+import { Fields } from './src/lib/types/default/types';
+import { createCollectionStore } from './src/lib/stores/collection.svelte.ts';
 
 // Function to check if value is optional
 const checkOptional = (value: string) => {
@@ -84,7 +85,7 @@ const getFieldType = (
 // Function to create a type string
 const createType = (
 	name: string,
-	fields: Field,
+	fields: Fields,
 	typeSuffix: '_Create' | '_FaunaCreate' | '' = ''
 ) => {
 	let typeStr = `type ${name}${typeSuffix} = {\n`;
@@ -115,8 +116,9 @@ const createType = (
 
 const generateTypedefs = async () => {
 	try {
+		const Collection = createCollectionStore().init();
 		const dir = `${process.cwd()}/`;
-		const schema = await fetchSchema();
+		const schema = Collection.all().data;
 		let exportTypeStr = 'export type {';
 
 		// Create types with fields and computed fields
