@@ -6,7 +6,7 @@
 	import type { Sorter } from './sort';
 	import { type Document, type Document_Create, baseFields } from '$lib/types/default/types';
 	import type { QueryValueObject } from 'fauna';
-	import { stores as s, asc, desc } from '$lib/stores';
+	import { s, asc, desc } from '$lib/stores';
 	import { page } from '$app/stores';
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));

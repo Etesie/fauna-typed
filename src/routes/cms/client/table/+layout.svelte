@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { goto } from '$app/navigation';
-	import { stores as s } from '$lib/stores';
+	import { s } from '$lib/stores';
 
 	let allCollections = $state(s.Collection.all().data);
 
