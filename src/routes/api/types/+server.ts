@@ -118,78 +118,87 @@ const createType = (
 };
 
 export const GET: RequestHandler = async () => {
-	const dir = `${process.cwd()}/`;
-	const schema = Collection.all().data;
-	let exportTypeStr = 'export type {';
+	try {
+		const dir = `${process.cwd()}/`;
+		const schema = Collection.all().data;
+		let exportTypeStr = 'export type {';
 
-	// Create types with fields and computed fields
-	const fieldTypes = schema
-		.map(({ name, fields, computed_fields }) => {
-			if (fields) {
-				let genericTypes = '';
+		// Create types with fields and computed fields
+		const fieldTypes = schema
+			.map(({ name, fields, computed_fields }) => {
+				if (fields) {
+					let genericTypes = '';
 
-				if (computed_fields) {
-					const fieldsData = { ...fields, ...computed_fields };
-					genericTypes = createType(name, fieldsData);
-				} else {
-					genericTypes = createType(name, fields);
+					if (computed_fields) {
+						const fieldsData = { ...fields, ...computed_fields };
+						genericTypes = createType(name, fieldsData);
+					} else {
+						genericTypes = createType(name, fields);
+					}
+
+					const crudTypeStr = createType(name, fields, '_Create');
+					const faunaCrudTypeStr = createType(name, fields, '_FaunaCreate');
+
+					exportTypeStr = exportTypeStr.concat(
+						'\n\t',
+						name,
+						',\n\t',
+						`${name}_Create`,
+						',\n\t',
+						`${name}_Update`,
+						',\n\t',
+						`${name}_Replace`,
+						',\n\t',
+						`${name}_FaunaCreate`,
+						',\n\t',
+						`${name}_FaunaUpdate`,
+						',\n\t',
+						`${name}_FaunaReplace`,
+						','
+					);
+
+					return genericTypes.concat(
+						'\n\n',
+						crudTypeStr,
+						'\n',
+						`type ${name}_Replace = ${name}_Create;`,
+						'\n',
+						`type ${name}_Update = Partial<${name}_Create>;`,
+						'\n\n',
+						faunaCrudTypeStr,
+						'\n',
+						`type ${name}_FaunaReplace = ${name}_FaunaCreate;`,
+						'\n',
+						`type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>;`
+					);
 				}
+			})
+			.join('\n\n');
 
-				const crudTypeStr = createType(name, fields, '_Create');
-				const faunaCrudTypeStr = createType(name, fields, '_FaunaCreate');
+		const typesStr =
+			"import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';".concat(
+				'\n\n',
+				fieldTypes,
+				'\n\n',
+				`${exportTypeStr}\n};`
+			);
 
-				exportTypeStr = exportTypeStr.concat(
-					'\n\t',
-					name,
-					',\n\t',
-					`${name}_Create`,
-					',\n\t',
-					`${name}_Update`,
-					',\n\t',
-					`${name}_Replace`,
-					',\n\t',
-					`${name}_FaunaCreate`,
-					',\n\t',
-					`${name}_FaunaUpdate`,
-					',\n\t',
-					`${name}_FaunaReplace`,
-					','
-				);
+		fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/types.ts`), typesStr, {
+			encoding: 'utf-8'
+		});
 
-				return genericTypes.concat(
-					'\n\n',
-					crudTypeStr,
-					'\n',
-					`type ${name}_Replace = ${name}_Create;`,
-					'\n',
-					`type ${name}_Update = Partial<${name}_Create>;`,
-					'\n\n',
-					faunaCrudTypeStr,
-					'\n',
-					`type ${name}_FaunaReplace = ${name}_FaunaCreate;`,
-					'\n',
-					`type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>;`
-				);
+		return new Response(JSON.stringify({ message: 'Types generated successfully' }), {
+			status: 200,
+			headers: {
+				'Content-Type': 'application/json'
 			}
-		})
-		.join('\n\n');
-
-	const typesStr =
-		"import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';".concat(
-			'\n\n',
-			fieldTypes,
-			'\n\n',
-			`${exportTypeStr}\n};`
-		);
-
-	fs.writeFileSync(path.resolve(dir, `src/lib/types/generated/types.ts`), typesStr, {
-		encoding: 'utf-8'
-	});
-
-	return new Response(JSON.stringify({ message: 'Types generated successfully' }), {
-		status: 200,
-		headers: {
-			'Content-Type': 'application/json'
-		}
-	});
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ message: 'Failed to generate types', error }), {
+			status: 500,
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+	}
 };
