@@ -28,22 +28,22 @@ type User_FaunaUpdate = Partial<User_FaunaCreate>;
 
 type Account = {
 	user: User;
-	provider?: string;
-	providerUserId?: string;
+	provider: string;
+	providerUserId: string;
 };
 
 type Account_Create = {
 	user: User | DocumentReference;
-	provider?: string;
-	providerUserId?: string;
+	provider: string;
+	providerUserId: string;
 };
 type Account_Replace = Account_Create;
 type Account_Update = Partial<Account_Create>;
 
 type Account_FaunaCreate = {
 	user: DocumentReference;
-	provider?: string;
-	providerUserId?: string;
+	provider: string;
+	providerUserId: string;
 };
 type Account_FaunaReplace = Account_FaunaCreate;
 type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
