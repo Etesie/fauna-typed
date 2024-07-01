@@ -13,7 +13,7 @@
 	};
 </script>
 
-<button on:click={createTypes}>Create Types</button>
+<button class="btn bg-amber-400" on:click={createTypes}>Create Types</button>
 <slot></slot>
 
 <style></style>
