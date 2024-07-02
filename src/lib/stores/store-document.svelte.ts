@@ -16,9 +16,10 @@ import {
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
+import { toFaunaDoc } from '$lib/types/converters/toFaunaDoc';
 
 let s: DocumentStores;
-let Collection = createCollectionStore().init();
+const Collection = createCollectionStore().init();
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -280,6 +281,7 @@ export const createDocumentStore = <
 			{ id, ts, coll, age, ...doc },
 			documentHandler
 		);
+		upsertObjectFromFauna(newDoc);
 
 		if (index > -1) {
 			addToPast();
@@ -328,22 +330,25 @@ export const createDocumentStore = <
 	>(
 		doc: Functions<Document<T>, T_Replace, T_Update>
 	): Functions<Document<T>, T_Replace, T_Update> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const proxiedDoc = new Proxy(doc, documentHandler);
+		// const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		// const proxiedDoc = new Proxy(doc, documentHandler);
 
-		if (index > -1) {
-			addToPast();
-			current[index] = proxiedDoc;
-		} else {
-			addToPast();
-			current.push(proxiedDoc);
-		}
-		toLocalStorage();
-		const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
-		if (!updatedDoc) {
-			throw new Error('Document not found after upsert');
-		}
-		return updatedDoc;
+		const faunaDoc = toFaunaDoc(doc, Collection.byName(COLL_NAME));
+		console.log(faunaDoc);
+
+		// if (index > -1) {
+		// 	addToPast();
+		// 	current[index] = proxiedDoc;
+		// } else {
+		// 	addToPast();
+		// 	current.push(proxiedDoc);
+		// }
+		// toLocalStorage();
+		// const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
+		// if (!updatedDoc) {
+		// 	throw new Error('Document not found after upsert');
+		// }
+		return faunaDoc;
 	};
 
 	const updateObject = (id: string, fields: Document_Update<T_Update>) => {
