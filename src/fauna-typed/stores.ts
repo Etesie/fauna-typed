@@ -1,6 +1,6 @@
-import { createCollectionStore } from './collection.svelte';
-import { createDocumentStore } from './store-document.svelte';
-import { asc, desc } from './_shared/order';
+import { createCollectionStore } from '../lib/stores/collection.svelte';
+import { createDocumentStore } from '../lib/stores/store-document.svelte';
+import { asc, desc } from '../lib/stores/_shared/order';
 import type {
 	Account,
 	Account_Create,
@@ -10,8 +10,8 @@ import type {
 	User_Create,
 	User_Replace,
 	User_Update
-} from '$lib/types/generated/types';
-import type { DocumentStores } from '$lib/types/default/types';
+} from './types';
+import type { DocumentStores } from '$lib/types/types';
 
 let Collection = createCollectionStore().init();
 
