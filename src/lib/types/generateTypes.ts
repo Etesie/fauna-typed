@@ -1,7 +1,17 @@
 import fs from 'fs';
 import path from 'path';
-import type { Fields, NamedDocument, Collection } from '$lib/types/default/types';
+import type { Fields, NamedDocument, Collection } from '$lib/types/types';
 import * as env from '$env/static/public';
+
+type GenerateTypesOptions = {
+	generatedTypesDirPath?: string;
+	generatedTypesFileName?: string;
+};
+
+const defaultGenerateTypeOptions = {
+	generatedTypesDirPath: 'src/fauna-typed',
+	generatedTypesFileName: 'types.ts'
+};
 
 // Function to check if value is optional
 const checkOptional = (value: string) => {
@@ -116,13 +126,16 @@ const createType = (
 
 export const generateTypes = (
 	schema: NamedDocument<Collection>[],
-	generatedTypesDirPath: string = 'src/fauna-typed',
-	generatedTypesFileName: string = 'types.ts'
+	options?: GenerateTypesOptions
 ) => {
 	if (env?.PUBLIC_NODE_ENV !== 'development') {
 		return { message: 'Ok' };
 	}
 
+	const generatedTypesDirPath =
+		options?.generatedTypesDirPath || defaultGenerateTypeOptions.generatedTypesDirPath;
+	const generatedTypesFileName =
+		options?.generatedTypesFileName || defaultGenerateTypeOptions.generatedTypesFileName;
 	const dir = `${process.cwd()}/`;
 	let exportTypeStr = 'export type {';
 
