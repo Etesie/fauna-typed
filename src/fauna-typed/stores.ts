@@ -15,19 +15,6 @@ import type { DocumentStores } from '$lib/types/types';
 
 let Collection = createCollectionStore().init();
 
-export const createTypes = async () => {
-	try {
-		const res = await fetch(`/api/types`);
-		const generatedTypesRes = await res.json();
-
-		console.log({ generatedTypesRes });
-	} catch (error) {
-		console.log('Error in createTypes:', error);
-	}
-};
-
-createTypes();
-
 /**
  * TODO: Create stores from API and inject types on the fly
  * Every time this code in this file runs we need to
