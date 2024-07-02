@@ -1,6 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 
-import { stores as s } from '$fauna-typed/stores';
+import { s } from '$fauna-typed/stores';
 
 export const load = (async () => {
 	/**

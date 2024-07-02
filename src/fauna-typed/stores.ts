@@ -15,19 +15,6 @@ import type { DocumentStores } from '$lib/types/types';
 
 let Collection = createCollectionStore().init();
 
-/**
- * TODO: Create stores from API and inject types on the fly
- * Every time this code in this file runs we need to
- * - generate the types from fauna // only dev side
- * - inject the types in this file
- * - create the stores with the injected types
- * !!! Challenge: Collection.all() is lazy, that means you get outdated data
- * instant and updated fauna data only after some time => Solved by reactivity
- */
-// Collection.all().data.map((collection) => {
-// 	createDocumentStore(collection.name);
-// });
-
 const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
 	'Account'
 );
