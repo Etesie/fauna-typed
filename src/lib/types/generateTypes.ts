@@ -116,7 +116,8 @@ const createType = (
 
 export const generateTypes = (
 	schema: NamedDocument<Collection>[],
-	generatedTypesFilePath: string = 'src/fauna-typed/types.ts'
+	generatedTypesDirPath: string = 'src/fauna-typed',
+	generatedTypesFileName: string = 'types.ts'
 ) => {
 	if (env?.PUBLIC_NODE_ENV !== 'development') {
 		return { message: 'Ok' };
@@ -185,9 +186,18 @@ export const generateTypes = (
 			`${exportTypeStr}\n};`
 		);
 
-	fs.writeFileSync(path.resolve(dir, generatedTypesFilePath), typesStr, {
-		encoding: 'utf-8'
-	});
+	if (!fs.existsSync(path.resolve(dir, generatedTypesDirPath))) {
+		fs.mkdirSync(path.resolve(dir, generatedTypesDirPath), { recursive: true });
+		console.log(`${generatedTypesDirPath} directory created successfully`);
+	}
+
+	fs.writeFileSync(
+		path.resolve(dir, `${generatedTypesDirPath}/${generatedTypesFileName}`),
+		typesStr,
+		{
+			encoding: 'utf-8'
+		}
+	);
 
 	return { message: 'Types generated successfully' };
 };
