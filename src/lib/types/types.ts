@@ -2,6 +2,8 @@ import type { Ordering } from '$lib/stores/_shared/order';
 import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
+const TEMP_ID_PREFIX = 'TEMP_';
+
 type Document<T extends QueryValueObject> = {
 	id: string;
 	coll: Module;
@@ -157,5 +159,6 @@ export {
 	type ComputedFields,
 	baseFields,
 	type Predicate,
-	type DocumentStores
+	type DocumentStores,
+	TEMP_ID_PREFIX
 };

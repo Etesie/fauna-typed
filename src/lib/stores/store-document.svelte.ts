@@ -12,7 +12,8 @@ import {
 	type Document_Update,
 	type DocumentStores,
 	type Collection,
-	type NamedDocument
+	type NamedDocument,
+	TEMP_ID_PREFIX
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -272,7 +273,7 @@ export const createDocumentStore = <
 		if (doc.id) {
 			id = doc.id;
 		} else {
-			id = 'TEMP_' + crypto.randomUUID();
+			id = TEMP_ID_PREFIX + crypto.randomUUID();
 		}
 
 		// TODO: We need to identify computed fields like age automatically and replace it
