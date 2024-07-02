@@ -116,7 +116,7 @@ const createType = (
 
 export const generateTypes = (
 	schema: NamedDocument<Collection>[],
-	generatedTypesFilePath: string = 'src/lib/types/generated/types.ts'
+	generatedTypesFilePath: string = 'src/fauna-typed/types.ts'
 ) => {
 	if (env?.PUBLIC_NODE_ENV !== 'development') {
 		return { message: 'Ok' };
