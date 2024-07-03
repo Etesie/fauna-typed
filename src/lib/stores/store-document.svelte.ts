@@ -18,6 +18,7 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import { toFaunaDoc } from '$lib/types/converters/toFaunaDoc';
+import { toFaunaReplaceDoc } from '$lib/types/converters/toFaunaReplaceDoc';
 
 let s: DocumentStores;
 const CollectionStore = createCollectionStore().init();
@@ -375,6 +376,8 @@ export const createDocumentStore = <
 				}
 			});
 			toLocalStorage();
+			const faunaDoc = toFaunaReplaceDoc(current[index], CollectionStore.byName(COLL_NAME));
+			console.log({ faunaDoc });
 		}
 	};
 
