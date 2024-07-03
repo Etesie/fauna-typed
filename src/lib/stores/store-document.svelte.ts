@@ -20,7 +20,7 @@ import { createCollectionStore } from './collection.svelte';
 import { toFaunaDoc } from '$lib/types/converters/toFaunaDoc';
 
 let s: DocumentStores;
-const Collection = createCollectionStore().init();
+const CollectionStore = createCollectionStore().init();
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -73,7 +73,7 @@ export const createDocumentStore = <
 ): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
 	const COLL_NAME: string = collectionName;
 
-	const definition: NamedDocument<Collection> = Collection.byName(COLL_NAME);
+	const definition: NamedDocument<Collection> = CollectionStore.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -327,11 +327,11 @@ export const createDocumentStore = <
 		T_Update extends QueryValueObject
 	>(
 		doc: Functions<T, T_Replace, T_Update>
-	):  Functions<T, T_Replace, T_Update> => {
+	): Functions<T, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const proxiedDoc = new Proxy(doc, documentHandler);
 
-		const faunaDoc = toFaunaDoc(doc, Collection.byName(COLL_NAME));
+		const faunaDoc = toFaunaDoc(doc, CollectionStore.byName(COLL_NAME));
 		console.log(faunaDoc);
 
 		if (index > -1) {
