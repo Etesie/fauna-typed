@@ -5,7 +5,9 @@ export const toFaunaDoc = <T extends QueryValueObject, T_FaunaCreate extends Que
 	doc: Document<T>,
 	collection: Collection
 ): Document_Create<T_FaunaCreate> => {
-	const fauanDocData: QueryValueObject = {};
+	const fauanDocData: QueryValueObject = {
+		ttl: doc.ttl || null
+	};
 
 	if (!doc.id?.startsWith(TEMP_ID_PREFIX)) {
 		fauanDocData.id = doc.id;
