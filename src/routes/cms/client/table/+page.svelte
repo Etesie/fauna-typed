@@ -117,6 +117,10 @@
 									<button class="btn preset-filled" onclick={() => doc.update(doc)}>Update</button>
 								</td>
 								<td>
+									<button class="btn preset-filled" onclick={() => doc.replace(doc)}>Replace</button
+									>
+								</td>
+								<td>
 									<button class="btn-icon preset-tonal-error" onclick={() => doc.delete()}>
 										<X />
 									</button>
