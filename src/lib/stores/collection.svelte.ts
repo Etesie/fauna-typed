@@ -4,11 +4,11 @@ import {
 	type Collection_Create,
 	type Collection_Replace,
 	type Collection_Update,
-	type Functions,
 	type NamedDocument,
 	type NamedDocument_Create,
 	type NamedDocument_Replace,
 	type NamedDocument_Update,
+	type NamedFunctions,
 	type Predicate
 } from '$lib/types/types';
 import { Module, TimeStub } from 'fauna';
@@ -22,19 +22,17 @@ type CreateCollectionStore = {
 	destroy: () => void;
 };
 
-type CollectionStore = {
-	byName: (
-		name: string
-	) => Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>;
-	first: () => Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>;
-	last: () => Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>;
-	all: () => Page<Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>>;
+export type CollectionStore = {
+	byName: (name: string) => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
+	first: () => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
+	last: () => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
+	all: () => Page<NamedFunctions<Collection, Collection_Replace, Collection_Update>>;
 	where: (
 		filter: Predicate<NamedDocument<Collection>>
-	) => Page<Functions<Collection, Collection_Replace, Collection_Update>>;
+	) => Page<NamedFunctions<Collection, Collection_Replace, Collection_Update>>;
 	create: (
 		doc: NamedDocument<Collection_Create>
-	) => Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>;
+	) => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
 };
 
 const documentHandler = {
@@ -65,9 +63,7 @@ const documentHandler = {
 	}
 };
 
-let collection = $state<
-	Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>[]
->([]);
+let collection = $state<NamedFunctions<Collection, Collection_Replace, Collection_Update>[]>([]);
 
 const toLocalStorage = () => {
 	storage.set(COLL_NAME, collection);
@@ -75,7 +71,7 @@ const toLocalStorage = () => {
 
 const getObjects = (
 	filter: Predicate<NamedDocument<Collection>>
-): Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>[] => {
+): NamedFunctions<Collection, Collection_Replace, Collection_Update>[] => {
 	return collection.filter(filter);
 };
 
@@ -112,14 +108,14 @@ const deleteObject = (name: string) => {
 
 const upsertObjectFromClient = (
 	newDoc: NamedDocument_Create<Collection_Create>
-): Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update> => {
+): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((doc) => $state.is(doc.name, newDoc.name));
 	const proxiedDoc = new Proxy(
 		{
 			...newDoc,
 			ts: TimeStub.fromDate(new Date()),
 			coll: new Module(COLL_NAME)
-		} as Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>,
+		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
 		documentHandler
 	);
 
@@ -178,8 +174,8 @@ upsertObjectFromClient({
 });
 
 const upsertObjectFromStorage = (
-	storageDoc: Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>
-): Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update> => {
+	storageDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
+): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
 	const proxiedDoc = new Proxy(storageDoc, documentHandler);
 	if (index > -1) {
@@ -196,9 +192,7 @@ const upsertObjectFromStorage = (
 
 const fromLocalStorage = () => {
 	const parsedDocuments =
-		storage.get<Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>>(
-			COLL_NAME
-		);
+		storage.get<NamedFunctions<Collection, Collection_Replace, Collection_Update>>(COLL_NAME);
 	if (parsedDocuments) {
 		parsedDocuments.forEach((parsedDocument) => {
 			upsertObjectFromStorage(parsedDocument);
@@ -228,7 +222,7 @@ export const createCollectionStore = (): CreateCollectionStore => {
 				case 'all':
 					return () => {
 						const result = new Page<
-							Functions<NamedDocument<Collection>, Collection_Replace, Collection_Update>
+							NamedFunctions<Collection, Collection_Replace, Collection_Update>
 						>(collection, undefined);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);

@@ -1,5 +1,6 @@
 import type { Ordering } from '$lib/stores/_shared/order';
-import type { CreateDocumentStore } from '$lib/stores/store-document.svelte';
+import type { CollectionStore } from '$lib/stores/collection.svelte';
+import type { CreateDocumentStore, DocumentStore } from '$lib/stores/store-document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
 const TEMP_ID_PREFIX = 'TEMP_';
@@ -66,11 +67,25 @@ type Collection_Create = Partial<Collection>;
 type Collection_Update = Partial<Collection>;
 type Collection_Replace = Partial<Collection>;
 
-type Functions<T, T_Replace extends QueryValueObject, T_Update extends QueryValueObject> = {
+type Functions<
+	T extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+> = {
 	update: (document: Document_Update<T_Update>) => void;
-	replace: (document: Document_Update<T_Replace>) => void;
+	replace: (document: Document_Replace<T_Replace>) => void;
 	delete: () => void;
-} & T;
+} & Document<T>;
+
+type NamedFunctions<
+	T extends QueryValueObject,
+	T_Replace extends QueryValueObject,
+	T_Update extends QueryValueObject
+> = {
+	update: (document: NamedDocument_Update<T_Update>) => void;
+	replace: (document: NamedDocument_Update<T_Replace>) => void;
+	delete: () => void;
+} & NamedDocument<T>;
 
 class Page<T extends QueryValueObject> {
 	data: T[];
@@ -140,6 +155,10 @@ type DocumentStores = {
 	[key: string]: CreateDocumentStore<any, any, any, any>;
 };
 
+type Stores = {
+	[key: string]: DocumentStore<any, any, any, any> | CollectionStore;
+};
+
 export {
 	type NamedDocument,
 	type NamedDocument_Create,
@@ -154,11 +173,13 @@ export {
 	type Document_Update,
 	type Document_Replace,
 	type Functions,
+	type NamedFunctions,
 	Page,
 	type Fields,
 	type ComputedFields,
 	baseFields,
 	type Predicate,
 	type DocumentStores,
-	TEMP_ID_PREFIX
+	TEMP_ID_PREFIX,
+	type Stores
 };

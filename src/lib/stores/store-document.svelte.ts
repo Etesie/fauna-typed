@@ -36,20 +36,20 @@ export type CreateDocumentStore<
 	destroy: () => void;
 };
 
-type DocumentStore<
+export type DocumentStore<
 	T extends QueryValueObject,
 	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 > = {
 	// byId: (id: string) => FunctionsT<DocumentT<T>>;
-	byId: (id: string) => Functions<Document<T>, T_Replace, T_Update>;
-	first: () => Functions<Document<T>, T_Replace, T_Update>;
-	last: () => Functions<Document<T>, T_Replace, T_Update>;
-	all: () => Page<Functions<Document<T>, T_Replace, T_Update>>;
-	paginate: (after: string) => Page<Functions<Document<T>, T_Replace, T_Update>>; // TODO: To be implemented
-	where: (filter: Predicate<Document<T>>) => Page<Functions<Document<T>, T_Replace, T_Update>>;
-	create: (doc: Document_Create<T_Create>) => Functions<Document<T>, T_Replace, T_Update>;
+	byId: (id: string) => Functions<T, T_Replace, T_Update>;
+	first: () => Functions<T, T_Replace, T_Update>;
+	last: () => Functions<T, T_Replace, T_Update>;
+	all: () => Page<Functions<T, T_Replace, T_Update>>;
+	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
+	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
+	create: (doc: Document_Create<T_Create>) => Functions<T, T_Replace, T_Update>;
 	definition: NamedDocument<Collection>;
 
 	undo: () => void;
@@ -78,22 +78,22 @@ export const createDocumentStore = <
 	/**
 	 * Used to determine the current state of the store
 	 */
-	let current = $state<Functions<Document<T>, T_Replace, T_Update>[]>([]);
+	let current = $state<Functions<T, T_Replace, T_Update>[]>([]);
 
 	/**
 	 * Used for undo functionality
 	 */
-	let past = $state<[Functions<Document<T>, T_Replace, T_Update>[]?]>([]);
+	let past = $state<[Functions<T, T_Replace, T_Update>[]?]>([]);
 
 	/**
 	 * Used for redo functionality
 	 */
-	let future = $state<[Functions<Document<T>, T_Replace, T_Update>[]?]>([]);
+	let future = $state<[Functions<T, T_Replace, T_Update>[]?]>([]);
 
 	/**
 	 * Stores all documents retrieved from the database unchanged. Used as a reference to determine the difference to "current" in order to determine which documents need to be updated, deleted or created in the database when the "sync" function is called.
 	 */
-	const database = $state<Functions<Document<T>, T_Replace, T_Update>[]>([]);
+	const database = $state<Functions<T, T_Replace, T_Update>[]>([]);
 
 	const createStoreHandler = {
 		get(target: any, prop: any, receiver: any): any {
@@ -137,10 +137,7 @@ export const createDocumentStore = <
 
 				case 'all':
 					return () => {
-						const result = new Page<Functions<Document<T>, T_Replace, T_Update>>(
-							current,
-							undefined
-						);
+						const result = new Page<Functions<T, T_Replace, T_Update>>(current, undefined);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
@@ -253,7 +250,7 @@ export const createDocumentStore = <
 		T_Update extends QueryValueObject
 	>(
 		filter: Predicate<Document<T>>
-	): Functions<Document<T>, T_Replace, T_Update>[] => {
+	): Functions<T, T_Replace, T_Update>[] => {
 		return current.filter(filter);
 	};
 
@@ -264,7 +261,7 @@ export const createDocumentStore = <
 		T_Update extends QueryValueObject
 	>(
 		doc: Document_Create<T_Create>
-	): Functions<Document<T>, T_Replace, T_Update> => {
+	): Functions<T, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
 		let id: string;
@@ -278,7 +275,7 @@ export const createDocumentStore = <
 
 		// TODO: We need to identify computed fields like age automatically and replace it
 		const age: number = 0;
-		const newDoc: Functions<Document<T>, T_Replace, T_Update> = new Proxy(
+		const newDoc: Functions<T, T_Replace, T_Update> = new Proxy(
 			{ id, ts, coll, age, ...doc },
 			documentHandler
 		);
@@ -305,8 +302,8 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		doc: Functions<Document<T>, T_Replace, T_Update>
-	): Functions<Document<T>, T_Replace, T_Update> => {
+		doc: Functions<T, T_Replace, T_Update>
+	): Functions<T, T_Replace, T_Update> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const proxiedDoc = new Proxy(doc, documentHandler);
 
@@ -329,27 +326,27 @@ export const createDocumentStore = <
 		T_Replace extends QueryValueObject,
 		T_Update extends QueryValueObject
 	>(
-		doc: Functions<Document<T>, T_Replace, T_Update>
-	): Functions<Document<T>, T_Replace, T_Update> => {
-		// const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		// const proxiedDoc = new Proxy(doc, documentHandler);
+		doc: Functions<T, T_Replace, T_Update>
+	):  Functions<T, T_Replace, T_Update> => {
+		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const proxiedDoc = new Proxy(doc, documentHandler);
 
 		const faunaDoc = toFaunaDoc(doc, Collection.byName(COLL_NAME));
 		console.log(faunaDoc);
 
-		// if (index > -1) {
-		// 	addToPast();
-		// 	current[index] = proxiedDoc;
-		// } else {
-		// 	addToPast();
-		// 	current.push(proxiedDoc);
-		// }
-		// toLocalStorage();
-		// const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
-		// if (!updatedDoc) {
-		// 	throw new Error('Document not found after upsert');
-		// }
-		return faunaDoc;
+		if (index > -1) {
+			addToPast();
+			current[index] = proxiedDoc;
+		} else {
+			addToPast();
+			current.push(proxiedDoc);
+		}
+		toLocalStorage();
+		const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
+		if (!updatedDoc) {
+			throw new Error('Document not found after upsert');
+		}
+		return updatedDoc;
 	};
 
 	const updateObject = (id: string, fields: Document_Update<T_Update>) => {
@@ -394,8 +391,8 @@ export const createDocumentStore = <
 		storage.set(COLL_NAME, current);
 	};
 
-	const fromLocalStorage = <T extends QueryValueObject>() => {
-		const parsedDocuments = storage.get<T, T_Replace, T_Update>(COLL_NAME);
+	const fromLocalStorage = () => {
+		const parsedDocuments = storage.get<Functions<T, T_Replace, T_Update>>(COLL_NAME);
 		if (parsedDocuments) {
 			parsedDocuments.forEach((parsedDocument) => {
 				upsertObjectFromStorage(parsedDocument);
@@ -416,10 +413,11 @@ export const createDocumentStore = <
 	};
 
 	// TODO: change type to T
-	async function fetchAllFromDB(page: Page<Functions<Document<T>, T_Replace, T_Update>>) {
+	async function fetchAllFromDB(page: Page<Functions<T, T_Replace, T_Update>>) {
 		try {
-			const response: QuerySuccess<Page<Functions<Document<T>, T_Replace, T_Update>>> =
-				await client.query<Page<Functions<Document<T>, T_Replace, T_Update>>>(fql`User.all()`);
+			const response: QuerySuccess<Page<Functions<T, T_Replace, T_Update>>> = await client.query<
+				Page<Functions<Document<T>, T_Replace, T_Update>>
+			>(fql`User.all()`);
 			if (response.data) {
 				// const data: User[] = response.data.data.map(
 				// 	(userWithoutMethods) => new User(userWithoutMethods)
