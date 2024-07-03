@@ -1,6 +1,6 @@
 import type { Ordering } from '$lib/stores/_shared/order';
 import type { CollectionStore } from '$lib/stores/collection.svelte';
-import type { CreateDocumentStore, DocumentStore } from '$lib/stores/store-document.svelte';
+import type { CreateDocumentStore, DocumentStore } from '$lib/stores/document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
 type Document<T extends QueryValueObject> = {
@@ -153,10 +153,6 @@ type DocumentStores = {
 	[key: string]: CreateDocumentStore<any, any, any, any>;
 };
 
-type Stores = {
-	[key: string]: DocumentStore<any, any, any, any> | CollectionStore;
-};
-
 export {
 	type NamedDocument,
 	type NamedDocument_Create,
@@ -177,6 +173,5 @@ export {
 	type ComputedFields,
 	baseFields,
 	type Predicate,
-	type DocumentStores,
-	type Stores
+	type DocumentStores
 };

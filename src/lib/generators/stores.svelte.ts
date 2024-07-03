@@ -1,6 +1,6 @@
 import type { Account, Account_Create, Account_Replace, Account_Update } from '$fauna-typed/types';
 import { createCollectionStore } from '$lib/stores/collection.svelte';
-import { createDocumentStore } from '$lib/stores/store-document.svelte';
+import { createDocumentStore } from '$lib/stores/document.svelte';
 import type { DocumentStores, Stores } from '$lib/types/types';
 
 let collections = $state(createCollectionStore().init().all().data);

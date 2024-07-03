@@ -48,6 +48,21 @@ type Account_FaunaCreate = {
 type Account_FaunaReplace = Account_FaunaCreate;
 type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
 
+interface TypeMapping {
+	Account: {
+		main: Account;
+		create: Account_Create;
+		replace: Account_Replace;
+		update: Account_Update;
+	};
+	User: {
+		main: User;
+		create: User_Create;
+		replace: User_Replace;
+		update: User_Update;
+	};
+}
+
 export type {
 	User,
 	User_Create,
@@ -63,4 +78,5 @@ export type {
 	Account_FaunaCreate,
 	Account_FaunaUpdate,
 	Account_FaunaReplace,
+	TypeMapping
 };
