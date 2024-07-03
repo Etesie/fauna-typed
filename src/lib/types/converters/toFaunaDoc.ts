@@ -1,21 +1,21 @@
 import type { QueryValueObject } from 'fauna';
-import { TEMP_ID_PREFIX, type Collection, type Document_Create } from '../types';
+import { TEMP_ID_PREFIX, type Collection, type Document, type Document_Create } from '../types';
 
-export const toFaunaDoc = <T_Create extends QueryValueObject>(
-	doc: Document_Create<T_Create>,
+export const toFaunaDoc = <T extends QueryValueObject, T_FaunaCreate extends QueryValueObject>(
+	doc: Document<T>,
 	collection: Collection
-) => {
-	const fauanDocData: { [key: string]: any } = {};
+): Document_Create<T_FaunaCreate> => {
+	const fauanDocData: QueryValueObject = {};
 
 	if (!doc.id?.startsWith(TEMP_ID_PREFIX)) {
 		fauanDocData.id = doc.id;
 	}
 
-	Object.entries(collection?.fields || {}).forEach(([fieldName, field]) => {
+	Object.keys(collection?.fields || {}).forEach((fieldName) => {
 		if (doc[fieldName] !== undefined) {
 			fauanDocData[fieldName] = doc[fieldName];
 		}
 	});
 
-	return fauanDocData;
+	return fauanDocData as Document_Create<T_FaunaCreate>;
 };

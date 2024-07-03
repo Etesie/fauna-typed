@@ -68,7 +68,10 @@ export const createDocumentStore = <
 	T extends QueryValueObject,
 	T_Create extends QueryValueObject,
 	T_Replace extends QueryValueObject,
-	T_Update extends QueryValueObject
+	T_Update extends QueryValueObject,
+	T_FaunaCreate extends QueryValueObject,
+	T_FaunaReplace extends QueryValueObject,
+	T_FaunaUpdate extends QueryValueObject
 >(
 	collectionName: string
 ): CreateDocumentStore<T, T_Create, T_Replace, T_Update> => {
@@ -332,7 +335,7 @@ export const createDocumentStore = <
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const proxiedDoc = new Proxy(doc, documentHandler);
 
-		const faunaDoc = toFaunaDoc(doc, CollectionStore.byName(COLL_NAME));
+		const faunaDoc = toFaunaDoc<T, T_FaunaCreate>(doc, CollectionStore.byName(COLL_NAME));
 		console.log(faunaDoc);
 
 		if (index > -1) {
@@ -376,7 +379,10 @@ export const createDocumentStore = <
 				}
 			});
 			toLocalStorage();
-			const faunaDoc = toFaunaReplaceDoc(current[index], CollectionStore.byName(COLL_NAME));
+			const faunaDoc = toFaunaReplaceDoc<T, T_FaunaReplace>(
+				current[index],
+				CollectionStore.byName(COLL_NAME)
+			);
 			console.log({ faunaDoc });
 		}
 	};

@@ -1,18 +1,20 @@
 import { type QueryValueObject } from 'fauna';
-import { type Collection, type Document_Create } from '../types';
+import { type Collection, type Document, type Document_Replace } from '../types';
 
-export const toFaunaReplaceDoc = <T_Create extends QueryValueObject>(
-	doc: Document_Create<T_Create>,
+export const toFaunaReplaceDoc = <
+	T extends QueryValueObject,
+	T_FaunaReplace extends QueryValueObject
+>(
+	doc: Document<T>,
 	collection: Collection
-) => {
-	const fauanDocData: { [key: string]: any } = {
-		id: doc.id,
+): Document_Replace<T_FaunaReplace> => {
+	const fauanDocData: QueryValueObject = {
 		ttl: doc.ttl || null
 	};
 
-	Object.entries(collection?.fields || {}).forEach(([fieldName, field]) => {
+	Object.keys(collection?.fields || {}).forEach((fieldName) => {
 		fauanDocData[fieldName] = doc[fieldName] || null;
 	});
 
-	return fauanDocData;
+	return fauanDocData as Document_Replace<T_FaunaReplace>;
 };

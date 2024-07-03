@@ -4,10 +4,16 @@ import { asc, desc } from '../lib/stores/_shared/order';
 import type {
 	Account,
 	Account_Create,
+	Account_FaunaCreate,
+	Account_FaunaReplace,
+	Account_FaunaUpdate,
 	Account_Replace,
 	Account_Update,
 	User,
 	User_Create,
+	User_FaunaCreate,
+	User_FaunaReplace,
+	User_FaunaUpdate,
 	User_Replace,
 	User_Update
 } from './types';
@@ -15,11 +21,25 @@ import type { DocumentStores } from '$lib/types/types';
 
 let Collection = createCollectionStore().init();
 
-const AccountStore = createDocumentStore<Account, Account_Create, Account_Replace, Account_Update>(
-	'Account'
-);
+const AccountStore = createDocumentStore<
+	Account,
+	Account_Create,
+	Account_Replace,
+	Account_Update,
+	Account_FaunaCreate,
+	Account_FaunaReplace,
+	Account_FaunaUpdate
+>('Account');
 // console.log('fields:', Object.entries(AccountStore.init().definition.fields).at(0));
-const UserStore = createDocumentStore<User, User_Create, User_Replace, User_Update>('User');
+const UserStore = createDocumentStore<
+	User,
+	User_Create,
+	User_Replace,
+	User_Update,
+	User_FaunaCreate,
+	User_FaunaReplace,
+	User_FaunaUpdate
+>('User');
 const stores = {
 	User: UserStore,
 	Account: AccountStore
