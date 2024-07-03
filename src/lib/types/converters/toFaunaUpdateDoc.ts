@@ -11,7 +11,7 @@ export const toFaunaUpdateDoc = <
 	const fauanDocData: QueryValueObject = {};
 
 	if (fields.ttl !== undefined) {
-		fauanDocData.ttl = fields.ttl;
+		fauanDocData.ttl = fields.ttl || null;
 	}
 
 	Object.keys(collection?.fields || {}).forEach((fieldName) => {
