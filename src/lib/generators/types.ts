@@ -138,6 +138,7 @@ export const generateTypes = (
 		options?.generatedTypesFileName || defaultGenerateTypeOptions.generatedTypesFileName;
 	const dir = `${process.cwd()}/`;
 	let exportTypeStr = 'export type {';
+	let typeMappingStr = 'interface TypeMapping {';
 
 	// Create types with fields and computed fields
 	const fieldTypes = schema
@@ -173,6 +174,21 @@ export const generateTypes = (
 					','
 				);
 
+				typeMappingStr = typeMappingStr.concat(
+					'\n\t',
+					`${name}: {`,
+					'\n\t\t',
+					`main: ${name};`,
+					'\n\t\t',
+					`create: ${name}_Create;`,
+					'\n\t\t',
+					`replace: ${name}_Replace;`,
+					'\n\t\t',
+					`update: ${name}_Update;`,
+					'\n\t',
+					'};'
+				);
+
 				return genericTypes.concat(
 					'\n\n',
 					crudTypeStr,
@@ -196,7 +212,10 @@ export const generateTypes = (
 			'\n\n',
 			fieldTypes,
 			'\n\n',
-			`${exportTypeStr}\n};`
+			`${typeMappingStr}\n}`,
+			'\n\n',
+			`${exportTypeStr}\n\tTypeMapping\n};`,
+			'\n'
 		);
 
 	if (!fs.existsSync(path.resolve(dir, generatedTypesDirPath))) {
