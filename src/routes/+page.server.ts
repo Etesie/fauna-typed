@@ -4,7 +4,7 @@ import { generateTypes } from '$lib/generators/types';
 
 export const load = () => {
 	if (env?.NODE_ENV === 'development') {
-		const Collection = createCollectionStore().init();
+		const Collection = createCollectionStore();
 		const schema = Collection.all().data;
 
 		const generatedTypesRes = generateTypes(schema);

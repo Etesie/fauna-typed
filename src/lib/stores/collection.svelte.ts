@@ -18,11 +18,6 @@ import type { Ordering } from './_shared/order';
 const COLL_NAME = 'Collection';
 
 type CreateCollectionStore = {
-	init: () => CollectionStore;
-	destroy: () => void;
-};
-
-export type CollectionStore = {
 	byName: (name: string) => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
 	first: () => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
 	last: () => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
@@ -33,6 +28,8 @@ export type CollectionStore = {
 	create: (
 		doc: NamedDocument<Collection_Create>
 	) => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
+
+	destroy: () => void;
 };
 
 const documentHandler = {
@@ -265,13 +262,5 @@ export const createCollectionStore = (): CreateCollectionStore => {
 		}
 	};
 
-	return {
-		init: () => {
-			fromLocalStorage();
-			return new Proxy(collection, storeHandler);
-		},
-		destroy: () => {
-			collection = [];
-		}
-	};
+	return new Proxy(collection, storeHandler);
 };

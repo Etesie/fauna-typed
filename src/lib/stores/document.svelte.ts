@@ -18,8 +18,8 @@ import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
 
-let s: DocumentStores;
-let Collection = createCollectionStore().init();
+let s: DocumentStores = $state({});
+let Collection = createCollectionStore();
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -27,21 +27,6 @@ export type CreateDocumentStore<
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject
 > = {
-	init: (stores: DocumentStores) => DocumentStore<T, T_Create, T_Replace, T_Update>; // TODO: init needs also to take the database client
-	/**
-	 * Empties the store. Useful if e.g. the user signs out
-	 * @returns
-	 */
-	destroy: () => void;
-};
-
-export type DocumentStore<
-	T extends QueryValueObject,
-	T_Create extends QueryValueObject,
-	T_Replace extends QueryValueObject,
-	T_Update extends QueryValueObject
-> = {
-	// byId: (id: string) => FunctionsT<DocumentT<T>>;
 	byId: (id: string) => Functions<T, T_Replace, T_Update>;
 	first: () => Functions<T, T_Replace, T_Update>;
 	last: () => Functions<T, T_Replace, T_Update>;
@@ -55,15 +40,15 @@ export type DocumentStore<
 	redo: () => void;
 
 	/**
-	 * Transforms an Array of Document into a POJO that can be used in the DOM.
-	 * @param users
+	 * Empties the store. Useful if e.g. the user signs out
 	 * @returns
 	 */
-	// toObjectArray: (users: FunctionsT<DocumentT<T>>[]) => UserPojo[];
+	destroy: () => void;
 };
 
 export const createDocumentStore = <K extends keyof TypeMapping>(
-	collectionName: K
+	collectionName: K,
+	documentStores: DocumentStores
 ): CreateDocumentStore<
 	TypeMapping[K]['main'],
 	TypeMapping[K]['create'],
@@ -76,6 +61,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	type ReplaceType = EnforceQueryValueObjectExtension<TypeMapping[K]['replace']>;
 	type UpdateType = EnforceQueryValueObjectExtension<TypeMapping[K]['update']>;
 
+	s = documentStores;
 	const COLL_NAME: string = collectionName;
 
 	const definition: NamedDocument<Collection> = Collection.byName(COLL_NAME);
@@ -101,28 +87,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	const database = $state<Functions<MainType, ReplaceType, UpdateType>[]>([]);
 
 	const createStoreHandler = {
-		get(target: any, prop: any, receiver: any): any {
-			switch (prop) {
-				case 'init':
-					return (stores: DocumentStores) => {
-						s = stores;
-						fromLocalStorage();
-						return new Proxy(current, storeHandler);
-					};
-				case 'destroy':
-					return () => {
-						current = [];
-						if (window) {
-							localStorage.removeItem(COLL_NAME);
-						}
-					};
-				default:
-					return undefined;
-			}
-		}
-	};
-
-	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'byId':
@@ -191,6 +155,14 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							past = result.past;
 							future = result.future;
 							toLocalStorage();
+						}
+					};
+
+				case 'destroy':
+					return () => {
+						current = [];
+						if (window) {
+							localStorage.removeItem(COLL_NAME);
 						}
 					};
 
@@ -431,6 +403,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	}
 
+	fromLocalStorage();
 	return new Proxy({}, createStoreHandler) as unknown as CreateDocumentStore<
 		MainType,
 		CreateType,

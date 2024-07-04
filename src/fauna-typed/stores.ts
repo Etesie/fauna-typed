@@ -1,18 +1,16 @@
 import { createCollectionStore } from '$lib/stores/collection.svelte';
 import { createDocumentStore } from '$lib/stores/document.svelte';
 import { asc, desc } from '$lib/stores/_shared/order';
+import type { DocumentStores } from '$lib/types/types';
 
-let Collection = createCollectionStore().init();
+let documentStores = {} as DocumentStores;
 
-const initialStores = {
-	User: createDocumentStore('User'),
-	Account: createDocumentStore('Account')
+const stores = {
+	Collection: createCollectionStore(),
+	User: createDocumentStore('User', documentStores),
+	Account: createDocumentStore('Account', documentStores)
 };
 
-const finalizedStores = {
-	Collection: Collection,
-	User: initialStores.User.init(initialStores),
-	Account: initialStores.Account.init(initialStores)
-};
+Object.assign(documentStores, stores);
 
-export { finalizedStores as stores, finalizedStores as s, asc, desc };
+export { stores, stores as s, asc, desc };
