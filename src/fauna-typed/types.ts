@@ -49,17 +49,17 @@ type Account_FaunaReplace = Account_FaunaCreate;
 type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
 
 interface TypeMapping {
-	Account: {
-		main: Account;
-		create: Account_Create;
-		replace: Account_Replace;
-		update: Account_Update;
-	};
 	User: {
 		main: User;
 		create: User_Create;
 		replace: User_Replace;
 		update: User_Update;
+	};
+	Account: {
+		main: Account;
+		create: Account_Create;
+		replace: Account_Replace;
+		update: Account_Update;
 	};
 }
 
