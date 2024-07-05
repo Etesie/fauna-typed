@@ -1,10 +1,9 @@
 import { browser } from '$app/environment';
-import type { DocumentT, FunctionsT } from '$lib/types/generated/types';
 import type { QueryValueObject } from 'fauna';
 
-const set = <T extends QueryValueObject>(key: string, current: DocumentT<T>[]) => {
+const set = <T extends QueryValueObject>(key: string, documents: T[]) => {
 	if (browser) {
-		localStorage.setItem(key, JSON.stringify(current));
+		localStorage.setItem(key, JSON.stringify(documents));
 	}
 };
 
@@ -13,7 +12,7 @@ const get = <T extends QueryValueObject>(key: string) => {
 		const storedData = localStorage.getItem(key);
 		if (storedData) {
 			try {
-				const parsedDocuments = JSON.parse(storedData) as FunctionsT<DocumentT<T>>[];
+				const parsedDocuments = JSON.parse(storedData) as T[];
 				// TODO: We proably need to deserialize the document before storing it
 				return parsedDocuments;
 			} catch (error) {
