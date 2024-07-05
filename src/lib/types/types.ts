@@ -1,6 +1,6 @@
+import type { TypeMapping } from '$fauna-typed/types';
 import type { Ordering } from '$lib/stores/_shared/order';
-import type { CollectionStore } from '$lib/stores/collection.svelte';
-import type { CreateDocumentStore, DocumentStore } from '$lib/stores/store-document.svelte';
+import type { createDocumentStore } from '$lib/stores/document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
 const TEMP_ID_PREFIX = 'TEMP_';
@@ -152,11 +152,7 @@ const baseFields = {
 type Predicate<T> = (item: T, index: number, array: T[]) => boolean;
 
 type DocumentStores = {
-	[key: string]: CreateDocumentStore<any, any, any, any>;
-};
-
-type Stores = {
-	[key: string]: DocumentStore<any, any, any, any> | CollectionStore;
+	[K in keyof TypeMapping]: ReturnType<typeof createDocumentStore<K>>;
 };
 
 export {
@@ -180,6 +176,5 @@ export {
 	baseFields,
 	type Predicate,
 	type DocumentStores,
-	TEMP_ID_PREFIX,
-	type Stores
+	TEMP_ID_PREFIX
 };

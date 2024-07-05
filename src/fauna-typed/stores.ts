@@ -1,54 +1,16 @@
-import { createCollectionStore } from '../lib/stores/collection.svelte';
-import { createDocumentStore } from '../lib/stores/store-document.svelte';
-import { asc, desc } from '../lib/stores/_shared/order';
-import type {
-	Account,
-	Account_Create,
-	Account_FaunaCreate,
-	Account_FaunaReplace,
-	Account_FaunaUpdate,
-	Account_Replace,
-	Account_Update,
-	User,
-	User_Create,
-	User_FaunaCreate,
-	User_FaunaReplace,
-	User_FaunaUpdate,
-	User_Replace,
-	User_Update
-} from './types';
+import { createCollectionStore } from '$lib/stores/collection.svelte';
+import { createDocumentStore } from '$lib/stores/document.svelte';
+import { asc, desc } from '$lib/stores/_shared/order';
 import type { DocumentStores } from '$lib/types/types';
 
-let Collection = createCollectionStore().init();
+const documentStores: DocumentStores = {} as DocumentStores;
 
-const AccountStore = createDocumentStore<
-	Account,
-	Account_Create,
-	Account_Replace,
-	Account_Update,
-	Account_FaunaCreate,
-	Account_FaunaReplace,
-	Account_FaunaUpdate
->('Account');
-// console.log('fields:', Object.entries(AccountStore.init().definition.fields).at(0));
-const UserStore = createDocumentStore<
-	User,
-	User_Create,
-	User_Replace,
-	User_Update,
-	User_FaunaCreate,
-	User_FaunaReplace,
-	User_FaunaUpdate
->('User');
 const stores = {
-	User: UserStore,
-	Account: AccountStore
-} as DocumentStores;
-
-const initializedStores = {
-	Collection: Collection,
-	User: UserStore.init(stores),
-	Account: AccountStore.init(stores)
+	Collection: createCollectionStore(),
+	User: createDocumentStore('User', documentStores),
+	Account: createDocumentStore('Account', documentStores)
 };
 
-export { initializedStores as stores, initializedStores as s, asc, desc };
+Object.assign(documentStores, stores);
+
+export { stores, stores as s, asc, desc };

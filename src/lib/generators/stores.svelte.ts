@@ -1,29 +1,64 @@
-import type { Account, Account_Create, Account_Replace, Account_Update } from '$fauna-typed/types';
 import { createCollectionStore } from '$lib/stores/collection.svelte';
-import { createDocumentStore } from '$lib/stores/store-document.svelte';
-import type { DocumentStores, Stores } from '$lib/types/types';
+import fs from 'fs';
+import path from 'path';
+import { NODE_ENV } from '$env/static/private';
 
-let collections = $state(createCollectionStore().init().all().data);
+type GenerateStoresOptions = {
+	generatedStoreDirPath?: string;
+	generatedStoreFileName?: string;
+};
 
-let initialDocStores = $derived(
-	collections.reduce((acc, collection) => {
-		// Assuming collection.name gives you 'User', 'Account', etc.
-		acc[collection.name] = createDocumentStore<
-			Account,
-			Account_Create,
-			Account_Replace,
-			Account_Update
-		>(collection.name);
-		return acc;
-	}, {} as DocumentStores)
-);
+const collections = $state(createCollectionStore().all().data);
 
-let finalizedDocStores = $derived(
-	Object.keys(initialDocStores).reduce((acc, key) => {
-		// Initialize each store with the full storeObject
-		const finalizedDocStore = initialDocStores[key].init(initialDocStores);
-		// Assign the initialized store to the accumulator object
-		acc[key] = finalizedDocStore;
-		return acc;
-	})
-);
+const defaultGenerateStoreOptions = {
+	generatedStoreDirPath: 'src/fauna-typed',
+	generatedStoreFileName: 'stores.ts'
+};
+
+const storeStr = `import { createCollectionStore } from '$lib/stores/collection.svelte';
+import { createDocumentStore } from '$lib/stores/document.svelte';
+import { asc, desc } from '$lib/stores/_shared/order';
+import type { DocumentStores } from '$lib/types/types';
+
+const documentStores: DocumentStores = {} as DocumentStores;
+
+storesObject
+
+Object.assign(documentStores, stores);
+
+export { stores, stores as s, asc, desc };
+`;
+
+export const generateStores = (options?: GenerateStoresOptions) => {
+	if (NODE_ENV !== 'development') {
+		return { message: 'Ok' };
+	}
+
+	const generatedStoreDirPath =
+		options?.generatedStoreDirPath || defaultGenerateStoreOptions.generatedStoreDirPath;
+	const generatedStoreFileName =
+		options?.generatedStoreFileName || defaultGenerateStoreOptions.generatedStoreFileName;
+	const dir = `${process.cwd()}/`;
+	let documentStoreStr = 'const stores = {\n	Collection: createCollectionStore(),';
+
+	collections.forEach((collection) => {
+		documentStoreStr += `\n\t${collection.name}: createDocumentStore('${collection.name}', documentStores),`;
+	});
+
+	documentStoreStr += '\n};';
+
+	if (!fs.existsSync(path.resolve(dir, generatedStoreDirPath))) {
+		fs.mkdirSync(path.resolve(dir, generatedStoreDirPath), { recursive: true });
+		console.log(`${generatedStoreDirPath} directory created successfully`);
+	}
+
+	fs.writeFileSync(
+		path.resolve(dir, `${generatedStoreDirPath}/${generatedStoreFileName}`),
+		storeStr.replace('storesObject', documentStoreStr),
+		{
+			encoding: 'utf-8'
+		}
+	);
+
+	return { message: 'Stores generated successfully' };
+};
