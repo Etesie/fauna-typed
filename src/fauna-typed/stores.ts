@@ -8,7 +8,7 @@ const documentStores: DocumentStores = {} as DocumentStores;
 const stores = {
 	Collection: createCollectionStore(),
 	User: createDocumentStore('User', documentStores),
-	Account: createDocumentStore('Account', documentStores)
+	Account: createDocumentStore('Account', documentStores),
 };
 
 Object.assign(documentStores, stores);

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { Fields, NamedDocument, Collection } from '$lib/types/types';
-import * as env from '$env/static/public';
+import { NODE_ENV } from '$env/static/private';
 
 type GenerateTypesOptions = {
 	generatedTypesDirPath?: string;
@@ -128,7 +128,7 @@ export const generateTypes = (
 	schema: NamedDocument<Collection>[],
 	options?: GenerateTypesOptions
 ) => {
-	if (env?.PUBLIC_NODE_ENV !== 'development') {
+	if (NODE_ENV !== 'development') {
 		return { message: 'Ok' };
 	}
 

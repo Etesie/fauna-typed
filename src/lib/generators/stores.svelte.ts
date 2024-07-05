@@ -1,7 +1,7 @@
 import { createCollectionStore } from '$lib/stores/collection.svelte';
 import fs from 'fs';
 import path from 'path';
-import * as env from '$env/static/public';
+import { NODE_ENV } from '$env/static/private';
 
 type GenerateStoresOptions = {
 	generatedStoreDirPath?: string;
@@ -30,7 +30,7 @@ export { stores, stores as s, asc, desc };
 `;
 
 export const generateStores = (options?: GenerateStoresOptions) => {
-	if (env?.PUBLIC_NODE_ENV !== 'development') {
+	if (NODE_ENV !== 'development') {
 		return { message: 'Ok' };
 	}
 

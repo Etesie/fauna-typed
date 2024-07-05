@@ -1,10 +1,10 @@
-import * as env from '$env/static/private';
+import { NODE_ENV } from '$env/static/private';
 import { createCollectionStore } from '$lib/stores/collection.svelte';
 import { generateTypes } from '$lib/generators/types';
 import { generateStores } from '$lib/generators/stores.svelte';
 
 export const load = () => {
-	if (env?.NODE_ENV === 'development') {
+	if (NODE_ENV === 'development') {
 		const Collection = createCollectionStore();
 		const schema = Collection.all().data;
 
