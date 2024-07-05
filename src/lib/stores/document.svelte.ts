@@ -1,4 +1,4 @@
-import { Module, type QuerySuccess, TimeStub, type QueryValueObject } from 'fauna';
+import { type QuerySuccess, type QueryValueObject } from 'fauna';
 import { client, fql } from '../database/client';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
