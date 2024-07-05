@@ -17,6 +17,7 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
+import { docCreateToDoc } from '$lib/types/converters';
 
 let s: DocumentStores = $state({});
 let Collection = createCollectionStore();
@@ -239,8 +240,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		const newDoc: FunctionsT<DocumentT<T>, T_Replace, T_Update> = new Proxy(
-			docCreateToDoc(doc, definition, COLL_NAME),
+		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
+			docCreateToDoc(doc, definition),
 			documentHandler
 		);
 

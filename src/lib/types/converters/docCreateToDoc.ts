@@ -1,26 +1,33 @@
-import type { Definition, Document_CreateT } from "../default/types";
-import { Module, TimeStub, type QueryValueObject } from 'fauna'
+import type { TypeMapping } from '$fauna-typed/types';
+import type { Collection, Document_Create, NamedDocument } from '../types';
+import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
-export const docCreateToDoc = <
-  T_Create extends QueryValueObject,
->(doc: Document_CreateT<T_Create>, definition: Definition, collectionName: string) => {
-  let id: string;
-  const ts: TimeStub = TimeStub.fromDate(new Date());
-  const coll: Module = new Module(collectionName);
-  if (doc.id) {
-    id = doc.id;
-  } else {
-    id = 'TEMP_' + crypto.randomUUID();
-  }
+type EnforceQueryValueObjectExtension<T> = T extends QueryValueObject ? T : never;
 
-  const computed_fields = Object.entries(definition.computed_fields).reduce((acc, [key, field]) => {
-    if (field.signature === 'Number') {
-      return { ...acc, [key]: 0 }
-    } else {
-      return { ...acc, [key]: '' }
-    }
-  }, {})
+export const docCreateToDoc = <K extends keyof TypeMapping>(
+	doc: Document_Create<EnforceQueryValueObjectExtension<TypeMapping[K]['create']>>,
+	definition: NamedDocument<Collection>
+) => {
+	let id: string;
+	const ts: TimeStub = TimeStub.fromDate(new Date());
+	const coll: Module = new Module(definition.name);
+	if (doc.id) {
+		id = doc.id;
+	} else {
+		id = 'TEMP_' + crypto.randomUUID();
+	}
 
-  const convertedDoc = { id, ts, coll, ...computed_fields, ...doc }
-  return convertedDoc
-}
+	const computed_fields = Object.entries(definition.computed_fields || {}).reduce(
+		(acc, [key, field]) => {
+			if (field.signature === 'Number') {
+				return { ...acc, [key]: 0 };
+			} else {
+				return { ...acc, [key]: '' };
+			}
+		},
+		{}
+	);
+
+	const convertedDoc = { id, ts, coll, ...computed_fields, ...doc };
+	return convertedDoc;
+};
