@@ -17,10 +17,8 @@ import {
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
-import { toFaunaDoc } from '$lib/types/converters/toFaunaDoc';
-import { toFaunaReplaceDoc } from '$lib/types/converters/toFaunaReplaceDoc';
-import { toFaunaUpdateDoc } from '$lib/types/converters/toFaunaUpdateDoc';
 import type { TypeMapping } from '$fauna-typed/types';
+import { toFaunaDoc, toFaunaReplaceDoc, toFaunaUpdateDoc } from '$lib/types/converters';
 
 let s: DocumentStores = $state({});
 const CollectionStore = createCollectionStore();
@@ -316,7 +314,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			toLocalStorage();
 
 			const faunaDoc = toFaunaUpdateDoc(fields, definition);
-
 			console.log({ faunaDoc });
 			return doc;
 		}
@@ -336,7 +333,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			});
 			toLocalStorage();
 
-			const faunaDoc = toFaunaReplaceDoc(current[index], definition);
+			const faunaDoc = toFaunaReplaceDoc(current[index], fields, definition);
 			console.log({ faunaDoc });
 		}
 	};
