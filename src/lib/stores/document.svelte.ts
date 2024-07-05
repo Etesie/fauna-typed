@@ -17,7 +17,7 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
-import { docCreateToDoc } from '$lib/types/converters';
+import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 
 let s: DocumentStores = $state({});
 let Collection = createCollectionStore();
@@ -306,20 +306,17 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			docUpdateToDoc(doc, fields);
+			docUpdateToDoc(doc, fields, definition);
 			toLocalStorage();
 			return doc;
 		}
 	};
 
-	const replaceObject = <T_Replace extends QueryValueObject>(
-		id: string,
-		fields: Document_ReplaceT<T_Replace>
-	) => {
+	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			docReplaceToDoc(doc, fields);
+			docReplaceToDoc(doc, fields, definition);
 			toLocalStorage();
 		}
 	};
