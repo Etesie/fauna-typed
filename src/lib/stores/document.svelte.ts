@@ -264,52 +264,40 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			current.push(newDoc);
 		}
 		toLocalStorage();
-		const updatedDoc = current.find((doc) => $state.is(doc.id, newDoc.id));
-		if (!updatedDoc) {
-			throw new Error('Document not found after upsert');
-		}
-		return updatedDoc;
+		return newDoc;
 	};
 
 	const upsertObjectFromStorage = (
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const proxiedDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
 			addToPast();
-			current[index] = proxiedDoc;
+			current[index] = newDoc;
 		} else {
 			addToPast();
-			current.push(proxiedDoc);
+			current.push(newDoc);
 		}
-		const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
-		if (!updatedDoc) {
-			throw new Error('Document not found after upsert');
-		}
-		return updatedDoc;
+		return newDoc;
 	};
 
 	const upsertObjectFromFauna = (
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const proxiedDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
 			addToPast();
-			current[index] = proxiedDoc;
+			current[index] = newDoc;
 		} else {
 			addToPast();
-			current.push(proxiedDoc);
+			current.push(newDoc);
 		}
 		toLocalStorage();
-		const updatedDoc = current.find((u) => $state.is(u.id, doc.id));
-		if (!updatedDoc) {
-			throw new Error('Document not found after upsert');
-		}
-		return updatedDoc;
+		return newDoc;
 	};
 
 	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
