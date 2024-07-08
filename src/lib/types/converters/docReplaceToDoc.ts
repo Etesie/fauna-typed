@@ -1,19 +1,15 @@
-import type { TypeMapping } from '$fauna-typed/types';
 import type { Collection, Document_Replace, Functions, NamedDocument } from '../types';
 import { type QueryValueObject } from 'fauna';
 
-type EnforceQueryValueObjectExtension<T> = T extends QueryValueObject ? T : never;
-
-export const docReplaceToDoc = <K extends keyof TypeMapping>(
-	doc: Functions<
-		EnforceQueryValueObjectExtension<TypeMapping[K]['main']>,
-		EnforceQueryValueObjectExtension<TypeMapping[K]['replace']>,
-		EnforceQueryValueObjectExtension<TypeMapping[K]['update']>
-	>,
-	updatedFields: Document_Replace<EnforceQueryValueObjectExtension<TypeMapping[K]['replace']>>,
+export const docReplaceToDoc = <
+	MainType extends QueryValueObject,
+	UpdateType extends QueryValueObject,
+	ReplaceType extends QueryValueObject
+>(
+	doc: Functions<MainType, UpdateType, ReplaceType>,
+	updatedFields: Document_Replace<ReplaceType>,
 	definition: NamedDocument<Collection>
 ) => {
-	Object.assign(doc, updatedFields);
 	Object.keys(doc).forEach((key) => {
 		if (!(key in updatedFields)) {
 			if (key !== 'id' && key !== 'ts' && key !== 'coll') {

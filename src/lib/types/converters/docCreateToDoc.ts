@@ -1,12 +1,10 @@
-import type { TypeMapping } from '$fauna-typed/types';
-import type { Collection, Document_Create, NamedDocument } from '../types';
+import type { Collection, Document_Create, DocumentStores, NamedDocument } from '../types';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
-type EnforceQueryValueObjectExtension<T> = T extends QueryValueObject ? T : never;
-
-export const docCreateToDoc = <K extends keyof TypeMapping>(
-	doc: Document_Create<EnforceQueryValueObjectExtension<TypeMapping[K]['create']>>,
-	definition: NamedDocument<Collection>
+export const docCreateToDoc = <CreateType extends QueryValueObject>(
+	doc: Document_Create<CreateType>,
+	definition: NamedDocument<Collection>,
+	s: DocumentStores
 ) => {
 	let id: string;
 	const ts: TimeStub = TimeStub.fromDate(new Date());
@@ -28,6 +26,13 @@ export const docCreateToDoc = <K extends keyof TypeMapping>(
 		{}
 	);
 
-	const convertedDoc = { id, ts, coll, ...computed_fields, ...doc };
+	const convertedDoc: any = { id, ts, coll, ...computed_fields };
+
+	Object.entries(doc).map(([key, val]) => {
+		if (val.id) {
+			convertedDoc[key] = () => s[definition.name].byId(val.id);
+		}
+	});
+
 	return convertedDoc;
 };
