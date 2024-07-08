@@ -303,22 +303,22 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
-		const doc = current.find((u) => $state.is(u.id, id));
+		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
+			doc = docUpdateToDoc(doc, fields, definition);
 			Object.assign(doc, fields);
-			docUpdateToDoc(doc, fields, definition);
 			toLocalStorage();
 			return doc;
 		}
 	};
 
 	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
-		const doc = current.find((u) => $state.is(u.id, id));
+		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
+			doc = docReplaceToDoc(doc, fields, definition);
 			Object.assign(doc, fields);
-			docReplaceToDoc(doc, fields, definition);
 			toLocalStorage();
 		}
 	};

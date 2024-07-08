@@ -1,8 +1,24 @@
-import type { Collection, Document_Create, DocumentStores, NamedDocument } from '../types';
-import { Module, TimeStub, type QueryValueObject } from 'fauna';
+import type {
+	Collection,
+	Document,
+	Document_Create,
+	DocumentStores,
+	NamedDocument
+} from '../types';
+import { DateStub, Module, TimeStub, type QueryValueObject } from 'fauna';
 
-export const docCreateToDoc = <CreateType extends QueryValueObject>(
-	doc: Document_Create<CreateType>,
+const defaultFieldValue: Record<string, any> = {
+	Number: 0,
+	String: '',
+	Boolean: false,
+	Date: DateStub.fromDate(new Date()),
+	Time: TimeStub.fromDate(new Date()),
+	Ref: () => null,
+	Object: {}
+};
+
+export const docCreateToDoc = <T extends QueryValueObject, T_Create extends QueryValueObject>(
+	doc: Document_Create<T_Create>,
 	definition: NamedDocument<Collection>,
 	s: DocumentStores
 ) => {
@@ -17,22 +33,20 @@ export const docCreateToDoc = <CreateType extends QueryValueObject>(
 
 	const computed_fields = Object.entries(definition.computed_fields || {}).reduce(
 		(acc, [key, field]) => {
-			if (field.signature === 'Number') {
-				return { ...acc, [key]: 0 };
-			} else {
-				return { ...acc, [key]: '' };
-			}
+			return { ...acc, [key]: defaultFieldValue[field.signature] };
 		},
 		{}
 	);
 
-	const convertedDoc: any = { id, ts, coll, ...computed_fields };
-
-	Object.entries(doc).map(([key, val]) => {
-		if (val.id) {
-			convertedDoc[key] = () => s[definition.name].byId(val.id);
+	const docValues = Object.entries(doc).reduce((acc, [key, val]) => {
+		if (val?.id) {
+			return { ...acc, [key]: () => s[definition.name].byId(val.id) };
+		} else {
+			return { ...acc, [key]: val };
 		}
-	});
+	}, {});
 
-	return convertedDoc;
+	const convertedDoc: any = { id, ts, coll, ...docValues, ...computed_fields };
+
+	return convertedDoc as Document<T>;
 };
