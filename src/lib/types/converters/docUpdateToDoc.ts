@@ -1,5 +1,6 @@
 import type { Collection, Document_Update, Functions, NamedDocument } from '../types';
 import { type QueryValueObject } from 'fauna';
+import { getDefaultComputedValue } from './getDefaultComputedValue';
 
 export const docUpdateToDoc = <
 	MainType extends QueryValueObject,
@@ -10,24 +11,12 @@ export const docUpdateToDoc = <
 	updatedFields: Document_Update<UpdateType>,
 	definition: NamedDocument<Collection>
 ) => {
-	Object.keys(doc).forEach((key) => {
-		if (!(key in updatedFields)) {
-			if (key !== 'ts') {
-				delete doc[key];
-			}
-		}
-	});
-
 	const computed_fields = Object.entries(definition.computed_fields || {}).reduce(
 		(acc, [key, field]) => {
-			if (field.signature === 'Number') {
-				return { ...acc, [key]: 0 };
-			} else {
-				return { ...acc, [key]: '' };
-			}
+			return { ...acc, [key]: getDefaultComputedValue(field.signature) };
 		},
 		{}
 	);
 
-	return { ...doc, ...computed_fields };
+	return { ts: doc.ts, ...updatedFields, ...computed_fields };
 };

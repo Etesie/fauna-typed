@@ -1,5 +1,6 @@
 import type { Collection, Document_Replace, Functions, NamedDocument } from '../types';
 import { type QueryValueObject } from 'fauna';
+import { getDefaultComputedValue } from './getDefaultComputedValue';
 
 export const docReplaceToDoc = <
 	MainType extends QueryValueObject,
@@ -10,24 +11,12 @@ export const docReplaceToDoc = <
 	updatedFields: Document_Replace<ReplaceType>,
 	definition: NamedDocument<Collection>
 ) => {
-	Object.keys(doc).forEach((key) => {
-		if (!(key in updatedFields)) {
-			if (key !== 'id' && key !== 'ts' && key !== 'coll') {
-				delete doc[key];
-			}
-		}
-	});
-
 	const computed_fields = Object.entries(definition.computed_fields || {}).reduce(
 		(acc, [key, field]) => {
-			if (field.signature === 'Number') {
-				return { ...acc, [key]: 0 };
-			} else {
-				return { ...acc, [key]: '' };
-			}
+			return { ...acc, [key]: getDefaultComputedValue(field.signature) };
 		},
 		{}
 	);
 
-	return { ...doc, ...computed_fields };
+	return { id: doc.id, ts: doc.ts, coll: doc.coll, ...updatedFields, ...computed_fields };
 };
