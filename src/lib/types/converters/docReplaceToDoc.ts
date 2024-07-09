@@ -8,7 +8,7 @@ import type {
 } from '../types';
 import { type QueryValueObject } from 'fauna';
 import { getDefaultComputedValue } from './getDefaultComputedValue';
-import { getDocumentWithoutReference } from './getDocumentWithoutReference';
+import { transformFaunaRefToStoreFunctions } from './transformFaunaRefToStoreFunctions';
 
 export const docReplaceToDoc = <
 	T extends QueryValueObject,
@@ -27,14 +27,17 @@ export const docReplaceToDoc = <
 		},
 		{}
 	);
-	const updatedFieldsWithoutReference = getDocumentWithoutReference(updatedFields, definition, s);
+	const updatedFieldsWithoutReference = transformFaunaRefToStoreFunctions(
+		updatedFields,
+		definition,
+		s
+	);
 
-	const convertedDoc: any = {
+	return {
 		id: doc.id,
 		ts: doc.ts,
 		coll: doc.coll,
 		...updatedFieldsWithoutReference,
 		...computed_fields
-	};
-	return convertedDoc as Document<T>;
+	} as Document<T>;
 };

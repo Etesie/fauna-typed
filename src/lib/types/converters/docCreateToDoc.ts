@@ -7,7 +7,7 @@ import type {
 } from '../types';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 import { getDefaultComputedValue } from './getDefaultComputedValue';
-import { getDocumentWithoutReference } from './getDocumentWithoutReference';
+import { transformFaunaRefToStoreFunctions } from './transformFaunaRefToStoreFunctions';
 
 export const docCreateToDoc = <T extends QueryValueObject, T_Create extends QueryValueObject>(
 	doc: Document_Create<T_Create>,
@@ -29,8 +29,7 @@ export const docCreateToDoc = <T extends QueryValueObject, T_Create extends Quer
 		},
 		{}
 	);
-	const docValues = getDocumentWithoutReference(doc, definition, s);
+	const documentFieldsWithoutReference = transformFaunaRefToStoreFunctions(doc, definition, s);
 
-	const convertedDoc: any = { id, ts, coll, ...docValues, ...computed_fields };
-	return convertedDoc as Document<T>;
+	return { id, ts, coll, ...documentFieldsWithoutReference, ...computed_fields } as Document<T>;
 };

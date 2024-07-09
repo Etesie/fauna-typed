@@ -1,6 +1,6 @@
 import type { Collection, DocumentStores, NamedDocument } from '../types';
 
-const getDocumentWithoutReference = (
+const transformFaunaRefToStoreFunctions = (
 	doc: any,
 	definition: NamedDocument<Collection>,
 	s: DocumentStores
@@ -21,4 +21,4 @@ const getDocumentWithoutReference = (
 	}, {});
 };
 
-export { getDocumentWithoutReference };
+export { transformFaunaRefToStoreFunctions };

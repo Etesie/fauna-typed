@@ -307,7 +307,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		if (doc) {
 			addToPast();
 			doc = docUpdateToDoc(doc, fields, definition, s);
-			Object.assign(doc, fields);
 			toLocalStorage();
 			return doc;
 		}
@@ -318,7 +317,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		if (doc) {
 			addToPast();
 			doc = docReplaceToDoc(doc, fields, definition, s);
-			Object.assign(doc, fields);
 			toLocalStorage();
 		}
 	};
