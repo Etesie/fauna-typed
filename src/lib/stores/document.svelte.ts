@@ -241,7 +241,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition),
+			docCreateToDoc(doc, definition, s),
 			documentHandler
 		);
 
@@ -306,7 +306,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			doc = docUpdateToDoc(doc, fields, definition);
+			doc = docUpdateToDoc(doc, fields, definition, s);
 			Object.assign(doc, fields);
 			toLocalStorage();
 			return doc;
@@ -317,7 +317,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			doc = docReplaceToDoc(doc, fields, definition);
+			doc = docReplaceToDoc(doc, fields, definition, s);
 			Object.assign(doc, fields);
 			toLocalStorage();
 		}
