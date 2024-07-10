@@ -1,5 +1,13 @@
 import type { Collection, DocumentStores, NamedDocument } from '../types';
 
+/**
+ * Transforms Fauna reference objects into functions that can be used to retrieve the referenced document from the store.
+ *
+ * @param {any} doc - The object to be transformed.
+ * @param {NamedDocument<Collection>} definition - The definition of the named object.
+ * @param {DocumentStores} s - The document stores object.
+ * @return {Object} - The transformed object, with any reference objects replaced by functions that retrieve the referenced document from the store.
+ */
 const transformFaunaRefToStoreFunctions = (
 	doc: any,
 	definition: NamedDocument<Collection>,

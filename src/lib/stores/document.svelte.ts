@@ -306,9 +306,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			doc = docUpdateToDoc(doc, fields, definition, s);
+			const converted = docUpdateToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
-			return doc;
 		}
 	};
 
@@ -316,7 +316,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		let doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			doc = docReplaceToDoc(doc, fields, definition, s);
+			const converted = docReplaceToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
 		}
 	};
