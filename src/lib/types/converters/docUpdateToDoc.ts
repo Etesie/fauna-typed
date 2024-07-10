@@ -12,12 +12,11 @@ import { transformFaunaRefToStoreFunctions } from './transformFaunaRefToStoreFun
 
 export const docUpdateToDoc = <
 	T extends QueryValueObject,
-	MainType extends QueryValueObject,
-	UpdateType extends QueryValueObject,
-	ReplaceType extends QueryValueObject
+	T_Update extends QueryValueObject,
+	T_Replace extends QueryValueObject
 >(
-	doc: Functions<MainType, UpdateType, ReplaceType>,
-	updatedFields: Document_Update<UpdateType>,
+	doc: Functions<T, T_Update, T_Replace>,
+	updatedFields: Document_Update<T_Update>,
 	definition: NamedDocument<Collection>,
 	s: DocumentStores
 ) => {

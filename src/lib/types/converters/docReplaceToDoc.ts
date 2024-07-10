@@ -12,12 +12,11 @@ import { transformFaunaRefToStoreFunctions } from './transformFaunaRefToStoreFun
 
 export const docReplaceToDoc = <
 	T extends QueryValueObject,
-	MainType extends QueryValueObject,
-	UpdateType extends QueryValueObject,
-	ReplaceType extends QueryValueObject
+	T_Update extends QueryValueObject,
+	T_Replace extends QueryValueObject
 >(
-	doc: Functions<MainType, UpdateType, ReplaceType>,
-	updatedFields: Document_Replace<ReplaceType>,
+	doc: Functions<T, T_Update, T_Replace>,
+	replacedFields: Document_Replace<T_Replace>,
 	definition: NamedDocument<Collection>,
 	s: DocumentStores
 ) => {
@@ -27,8 +26,8 @@ export const docReplaceToDoc = <
 		},
 		{}
 	);
-	const updatedFieldsWithoutReference = transformFaunaRefToStoreFunctions(
-		updatedFields,
+	const replacedFieldsWithoutReference = transformFaunaRefToStoreFunctions(
+		replacedFields,
 		definition,
 		s
 	);
@@ -37,7 +36,7 @@ export const docReplaceToDoc = <
 		id: doc.id,
 		ts: doc.ts,
 		coll: doc.coll,
-		...updatedFieldsWithoutReference,
+		...replacedFieldsWithoutReference,
 		...computed_fields
 	} as Document<T>;
 };
