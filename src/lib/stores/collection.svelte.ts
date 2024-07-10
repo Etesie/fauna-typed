@@ -11,9 +11,10 @@ import {
 	type NamedFunctions,
 	type Predicate
 } from '$lib/types/types';
-import { Module, TimeStub } from 'fauna';
+import { Client, Module, TimeStub } from 'fauna';
 import { storage } from './_shared/local-storage';
 import type { Ordering } from './_shared/order';
+import { createDatabaseApi } from '$lib/database/fauna';
 
 const COLL_NAME = 'Collection';
 
@@ -104,12 +105,12 @@ const deleteObject = (name: string) => {
 };
 
 const upsertObjectFromClient = (
-	newDoc: NamedDocument_Create<Collection_Create>
+	clientDoc: NamedDocument_Create<Collection_Create>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
-	const index = collection.findIndex((doc) => $state.is(doc.name, newDoc.name));
-	const proxiedDoc = new Proxy(
+	const index = collection.findIndex((doc) => $state.is(doc.name, clientDoc.name));
+	const newDoc = new Proxy(
 		{
-			...newDoc,
+			...clientDoc,
 			ts: TimeStub.fromDate(new Date()),
 			coll: new Module(COLL_NAME)
 		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
@@ -117,17 +118,13 @@ const upsertObjectFromClient = (
 	);
 
 	if (index > -1) {
-		collection[index] = proxiedDoc;
+		collection[index] = newDoc;
 	} else {
-		collection.push(proxiedDoc);
+		collection.push(newDoc);
 	}
 	toLocalStorage();
 
-	const updatedDoc = collection.find((doc) => $state.is(doc.name, proxiedDoc.name));
-	if (!updatedDoc) {
-		throw new Error('Document not found after upsert');
-	}
-	return updatedDoc;
+	return newDoc;
 };
 
 // TODO: REMOVE AFTER TESTING
@@ -155,41 +152,58 @@ upsertObjectFromClient({
 	}
 });
 
-upsertObjectFromClient({
-	name: 'Account',
-	fields: {
-		user: {
-			signature: 'Ref<User>'
-		},
-		provider: {
-			signature: 'String'
-		},
-		providerUserId: {
-			signature: 'String'
-		}
-	}
-});
+// upsertObjectFromClient({
+// 	name: 'Account',
+// 	fields: {
+// 		user: {
+// 			signature: 'Ref<User>'
+// 		},
+// 		provider: {
+// 			signature: 'String'
+// 		},
+// 		providerUserId: {
+// 			signature: 'String'
+// 		}
+// 	}
+// });
 
 const upsertObjectFromStorage = (
 	storageDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
+	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const proxiedDoc = new Proxy(storageDoc, documentHandler);
+	const newDoc = new Proxy(storageDoc, documentHandler);
 	if (index > -1) {
-		collection[index] = proxiedDoc;
+		collection[index] = newDoc;
 	} else {
-		collection.push(proxiedDoc);
+		collection.push(newDoc);
 	}
-	const updatedDoc = collection.find((u) => $state.is(u.name, storageDoc.name));
-	if (!updatedDoc) {
-		throw new Error('Document not found after upsert');
+
+	return newDoc;
+};
+
+const upsertObjectFromFauna = (
+	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
+): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
+	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
+	const newDoc = new Proxy(faunaDoc, documentHandler);
+	if (index > -1) {
+		console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
+		collection[index] = newDoc;
+	} else {
+		collection.push(newDoc);
 	}
-	return updatedDoc;
+
+	toLocalStorage();
+
+	return newDoc;
 };
 
 const fromLocalStorage = () => {
+	console.log('\nfromLocalStorage - collection.svelte.ts L203\n');
 	const parsedDocuments =
 		storage.get<NamedFunctions<Collection, Collection_Replace, Collection_Update>>(COLL_NAME);
+	console.log(parsedDocuments);
 	if (parsedDocuments) {
 		parsedDocuments.forEach((parsedDocument) => {
 			upsertObjectFromStorage(parsedDocument);
@@ -197,12 +211,15 @@ const fromLocalStorage = () => {
 	}
 };
 
-export const createCollectionStore = (): CreateCollectionStore => {
+export const createCollectionStore = (client: Client): CreateCollectionStore => {
+	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna);
+
 	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'byName':
 					return (name: string) => {
+						console.log('byName', name);
 						return getObjects((doc) => doc.name === name).at(0);
 					};
 
@@ -221,7 +238,7 @@ export const createCollectionStore = (): CreateCollectionStore => {
 						const result = new Page<
 							NamedFunctions<Collection, Collection_Replace, Collection_Update>
 						>(collection, undefined);
-						// fetchAllFromDB(result);
+						db.all();
 						return new Proxy(result, pageHandler);
 					};
 
@@ -262,5 +279,6 @@ export const createCollectionStore = (): CreateCollectionStore => {
 		}
 	};
 
+	fromLocalStorage();
 	return new Proxy(collection, storeHandler);
 };
