@@ -1,4 +1,4 @@
-import { Module, type QuerySuccess, TimeStub, type QueryValueObject } from 'fauna';
+import { type QuerySuccess, type QueryValueObject } from 'fauna';
 import { client, fql } from '../database/client';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
@@ -19,6 +19,7 @@ import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
 import { toFaunaDoc, toFaunaReplaceDoc, toFaunaUpdateDoc } from '$lib/types/converters';
+import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 
 let s: DocumentStores = $state({});
 const CollectionStore = createCollectionStore();
@@ -241,19 +242,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		let id: string;
-		const ts: TimeStub = TimeStub.fromDate(new Date());
-		const coll: Module = new Module(COLL_NAME);
-		if (doc.id) {
-			id = doc.id;
-		} else {
-			id = TEMP_ID_PREFIX + crypto.randomUUID();
-		}
-
-		// TODO: We need to identify computed fields like age automatically and replace it
-		const age: number = 0;
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			{ id, ts, coll, age, ...doc },
+			docCreateToDoc(doc, definition, s),
 			documentHandler
 		);
 		upsertObjectFromFauna(newDoc);
@@ -310,7 +300,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			Object.assign(doc, fields);
+			const converted = docUpdateToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
 
 			const faunaDoc = toFaunaUpdateDoc(fields, definition);
@@ -320,17 +311,11 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
+		const doc = current.find((u) => $state.is(u.id, id));
+		if (doc) {
 			addToPast();
-			Object.assign(current[index], fields);
-			Object.keys(current[index]).forEach((key) => {
-				if (!(key in fields)) {
-					if (key !== 'id' && key !== 'ts' && key !== 'coll') {
-						delete current[index][key];
-					}
-				}
-			});
+			const converted = docReplaceToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
 
 			const faunaDoc = toFaunaReplaceDoc(fields, definition);

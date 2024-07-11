@@ -1,3 +1,15 @@
-export { toFaunaDoc } from './toFaunaDoc';
-export { toFaunaReplaceDoc } from './toFaunaReplaceDoc';
-export { toFaunaUpdateDoc } from './toFaunaUpdateDoc';
+import { toFaunaDoc } from './toFaunaDoc';
+import { toFaunaReplaceDoc } from './toFaunaReplaceDoc';
+import { toFaunaUpdateDoc } from './toFaunaUpdateDoc';
+import { docCreateToDoc } from './docCreateToDoc';
+import { docReplaceToDoc } from './docReplaceToDoc';
+import { docUpdateToDoc } from './docUpdateToDoc';
+
+export {
+	docCreateToDoc,
+	docReplaceToDoc,
+	docUpdateToDoc,
+	toFaunaDoc,
+	toFaunaReplaceDoc,
+	toFaunaUpdateDoc
+};
