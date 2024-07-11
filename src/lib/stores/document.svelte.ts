@@ -12,8 +12,7 @@ import {
 	type Document_Update,
 	type DocumentStores,
 	type Collection,
-	type NamedDocument,
-	TEMP_ID_PREFIX
+	type NamedDocument
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -246,7 +245,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			docCreateToDoc(doc, definition, s),
 			documentHandler
 		);
-		upsertObjectFromFauna(newDoc);
+		upsertObjectFromFauna(doc);
 
 		if (index > -1) {
 			addToPast();
@@ -277,7 +276,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const upsertObjectFromFauna = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
+		doc: Document_Create<CreateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const newDoc = new Proxy(doc, documentHandler);

@@ -1,17 +1,17 @@
 import type { QueryValueObject } from 'fauna';
-import { TEMP_ID_PREFIX, type Collection, type Document } from '../types';
+import { TEMP_ID_PREFIX, type Collection, type Document_Create } from '../types';
 
 import { toFaunaValue } from './toFaunaValue';
 
 export const toFaunaDoc = <T extends QueryValueObject>(
-	doc: Document<T>,
+	doc: Document_Create<T>,
 	collection: Collection
 ) => {
 	const fauanDocData: QueryValueObject = {
 		ttl: doc.ttl || null
 	};
 
-	if (!doc.id?.startsWith(TEMP_ID_PREFIX)) {
+	if (doc.id && !doc.id?.startsWith(TEMP_ID_PREFIX)) {
 		fauanDocData.id = doc.id;
 	}
 
