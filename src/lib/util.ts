@@ -2,7 +2,6 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { cubicOut } from 'svelte/easing';
 import type { TransitionConfig } from 'svelte/transition';
-import { DocumentReference } from 'fauna';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -54,17 +53,4 @@ export const flyAndScale = (
 		},
 		easing: cubicOut
 	};
-};
-
-export const extractCollectionAndIdFromRef = (ref: string) => {
-	const collectionName = ref.split('.')[0]; // Extract string before dot
-	const id = ref.match(/["'](.*?)["']/)?.[1] as string; // Extract string between quotes
-
-	return { collectionName: collectionName.trim(), id };
-};
-
-export const createFaunaReference = (ref: string): DocumentReference => {
-	const { collectionName, id } = extractCollectionAndIdFromRef(ref);
-
-	return new DocumentReference({ coll: collectionName, id: id });
 };
