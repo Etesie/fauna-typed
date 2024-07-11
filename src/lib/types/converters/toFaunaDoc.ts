@@ -15,11 +15,11 @@ export const toFaunaDoc = <T extends QueryValueObject>(
 		fauanDocData.id = doc.id;
 	}
 
-	Object.keys(collection?.fields || {}).forEach((fieldName) => {
-		const fieldValue = doc[fieldName];
+	Object.entries(collection?.fields || {}).forEach(([fieldName, fieldValue]) => {
+		const value = doc[fieldName];
 
-		if (fieldValue !== undefined) {
-			fauanDocData[fieldName] = toFaunaValue(fieldValue);
+		if (value !== undefined) {
+			fauanDocData[fieldName] = toFaunaValue(value, fieldValue);
 		}
 	});
 

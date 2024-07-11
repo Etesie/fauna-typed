@@ -12,11 +12,11 @@ export const toFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 		fauanDocData.ttl = fields.ttl || null;
 	}
 
-	Object.keys(collection?.fields || {}).forEach((fieldName) => {
-		const fieldValue = fields[fieldName as keyof typeof fields];
+	Object.entries(collection?.fields || {}).forEach(([fieldName, fieldValue]) => {
+		const value = fields[fieldName as keyof typeof fields];
 
-		if (fieldValue !== undefined) {
-			fauanDocData[fieldName] = toFaunaValue(fieldValue);
+		if (value !== undefined) {
+			fauanDocData[fieldName] = toFaunaValue(value, fieldValue);
 		}
 	});
 

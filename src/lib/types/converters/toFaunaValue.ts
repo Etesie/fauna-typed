@@ -1,39 +1,22 @@
-import { createFaunaReference } from '$lib/util';
-import type { QueryValue } from 'fauna';
+import { DocumentReference, type QueryValue } from 'fauna';
+import type { Field } from '../types';
 
-const checkReferenceType = (value: string | string[]) => {
+const toFaunaReference = (value: DocumentReference | DocumentReference[]) => {
 	if (Array.isArray(value)) {
-		return value[0]?.includes?.('.byId(');
-	} else if (typeof value === 'string') {
-		return value.includes('.byId(');
-	}
-
-	return false;
-};
-
-const toFaunaReference = (value: string | string[]) => {
-	if (typeof value === 'string') {
-		const refStr = value.split('() =>')[1].trim();
-		return createFaunaReference(refStr);
+		return value.map((val) => new DocumentReference({ coll: val.coll, id: val.id }));
 	} else {
-		return value.map((val) => {
-			const refStr = val.split('() =>')[1].trim();
-			return createFaunaReference(refStr);
-		});
+		return value.id && value?.coll?.name
+			? new DocumentReference({ coll: value.coll, id: value.id })
+			: null;
 	}
 };
 
-export const toFaunaValue = (fieldValue: QueryValue) => {
-	const isArrayType = Array.isArray(fieldValue);
-	const isStringType = typeof fieldValue === 'string';
-	let value = fieldValue;
+export const toFaunaValue = (docValue: QueryValue, fieldValue: Field) => {
+	let value = docValue;
+	const isReferenceType = fieldValue.signature.includes('Ref<');
 
-	if (isArrayType || isStringType) {
-		const isReferenceType = checkReferenceType(fieldValue as string | string[]);
-
-		if (isReferenceType) {
-			value = toFaunaReference(fieldValue as string | string[]);
-		}
+	if (isReferenceType) {
+		value = toFaunaReference(value as DocumentReference | DocumentReference[]);
 	}
 
 	return value;
