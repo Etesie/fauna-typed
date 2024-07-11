@@ -16,7 +16,7 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
-import { createDatabaseApi, type CreateDatabaseApi } from '$lib/database/fauna';
+import { createDatabaseApi } from '$lib/database/fauna';
 
 let s: DocumentStores = $state({});
 
@@ -127,6 +127,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
 	const Collection = createCollectionStore(client);
+	console.log('Collection | document.svelte.ts L130', Collection);
 
 	s = documentStores;
 
@@ -195,7 +196,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					console.log('\ndefinition (document.svelte.ts L134):\n', definition);
+					console.log('\ndefinition (document.svelte.ts L198):\n', definition);
 					return definition;
 
 				/*************

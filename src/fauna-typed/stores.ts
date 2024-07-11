@@ -8,8 +8,11 @@ const documentStores: DocumentStores = {} as DocumentStores;
 
 const stores = {
 	Collection: createCollectionStore(client),
-	User: createDocumentStore('User', documentStores, client),
-	Account: createDocumentStore('Account', documentStores, client)
+	Event: createDocumentStore('Event', documentStores, client),
+	Consequence: createDocumentStore('Consequence', documentStores, client),
+	MasterChapter: createDocumentStore('MasterChapter', documentStores, client),
+	MasterQuestion: createDocumentStore('MasterQuestion', documentStores, client),
+	MasterAnswer: createDocumentStore('MasterAnswer', documentStores, client),
 };
 
 Object.assign(documentStores, stores);
