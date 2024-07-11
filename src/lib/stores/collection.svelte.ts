@@ -33,7 +33,7 @@ type CreateCollectionStore = {
 	destroy: () => void;
 };
 
-const documentHandler = (name: string) => {
+const createDocumentHandler = (name: string) => {
 	return {
 		get(target: any, prop: any, receiver: any): any {
 			const latestData = getObjects((doc) => doc.name === name).at(0) || {};
@@ -174,7 +174,7 @@ const upsertObjectFromClient = (
 			ts: TimeStub.fromDate(new Date()),
 			coll: new Module(COLL_NAME)
 		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
-		documentHandler
+		createDocumentHandler
 	);
 
 	if (index > -1) {
@@ -232,7 +232,7 @@ const upsertObjectFromStorage = (
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const newDoc = new Proxy(storageDoc, documentHandler);
+	const newDoc = new Proxy(storageDoc, createDocumentHandler);
 	if (index > -1) {
 		collection[index] = newDoc;
 	} else {
@@ -246,7 +246,7 @@ const upsertObjectFromFauna = (
 	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
-	const newDoc = new Proxy(faunaDoc, documentHandler);
+	const newDoc = new Proxy(faunaDoc, createDocumentHandler);
 	if (index > -1) {
 		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
 		collection[index] = newDoc;
@@ -280,7 +280,7 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 				case 'byName':
 					return (name: string) => {
 						console.log('Collection.byName:', name, '| collection.svelte.ts L282');
-						return new Proxy({}, documentHandler(name));
+						return new Proxy({}, createDocumentHandler(name));
 						// return getObjects((doc) => doc.name === name).at(0);
 					};
 
