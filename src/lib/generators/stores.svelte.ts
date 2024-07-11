@@ -2,6 +2,8 @@ import { createCollectionStore } from '$lib/stores/collection.svelte';
 import fs from 'fs';
 import path from 'path';
 import { NODE_ENV } from '$env/static/private';
+// TODO: BAD - need to replace it.
+import { client } from '$fauna-typed/client';
 
 type GenerateStoresOptions = {
 	generatedStoreDirPath?: string;
@@ -9,7 +11,7 @@ type GenerateStoresOptions = {
 };
 
 // TODO: How to get the client from fauna-typed? It's in the user scope
-const collections = $state(createCollectionStore().all().data);
+const collections = $state(createCollectionStore(client).all().data);
 
 const defaultGenerateStoreOptions = {
 	generatedStoreDirPath: 'src/fauna-typed',
