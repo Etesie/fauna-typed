@@ -333,7 +333,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			});
 			toLocalStorage();
 
-			const faunaDoc = toFaunaReplaceDoc(current[index], fields, definition);
+			const faunaDoc = toFaunaReplaceDoc(fields, definition);
 			console.log({ faunaDoc });
 		}
 	};

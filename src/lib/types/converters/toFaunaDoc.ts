@@ -1,7 +1,12 @@
 import type { QueryValueObject } from 'fauna';
 import { TEMP_ID_PREFIX, type Collection, type Document } from '../types';
 
-export const toFaunaDoc = (doc: Document<QueryValueObject>, collection: Collection) => {
+import { toFaunaValue } from './toFaunaValue';
+
+export const toFaunaDoc = <T extends QueryValueObject>(
+	doc: Document<T>,
+	collection: Collection
+) => {
 	const fauanDocData: QueryValueObject = {
 		ttl: doc.ttl || null
 	};
@@ -11,8 +16,10 @@ export const toFaunaDoc = (doc: Document<QueryValueObject>, collection: Collecti
 	}
 
 	Object.keys(collection?.fields || {}).forEach((fieldName) => {
-		if (doc[fieldName] !== undefined) {
-			fauanDocData[fieldName] = doc[fieldName];
+		const fieldValue = doc[fieldName];
+
+		if (fieldValue !== undefined) {
+			fauanDocData[fieldName] = toFaunaValue(fieldValue);
 		}
 	});
 
