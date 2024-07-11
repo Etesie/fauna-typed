@@ -107,9 +107,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'all':
 					return () => {
+						const pageSize = 16;
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current,
-							undefined
+							current.slice(0, pageSize),
+							current.length > pageSize ? 1 : undefined
 						);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);
@@ -189,7 +190,17 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'data':
 					return target.data;
 				case 'after':
-					return target.after;
+					return () => {
+						if (target?.after && typeof target?.after === 'number') {
+							const pageSize = 16;
+							const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
+								current.slice(pageSize * target?.after, pageSize * (target?.after + 1)),
+								current.length > pageSize * (target?.after + 1) ? target?.after + 1 : undefined
+							);
+							return new Proxy(result, pageHandler);
+						}
+						return null;
+					};
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
 						target.order(...orderings); // Use the Page class's order method
