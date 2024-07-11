@@ -14,9 +14,11 @@ const transformFaunaRefToStoreFunctions = (
 	s: DocumentStores
 ) => {
 	return Object.entries(doc).reduce((acc, [key, val]) => {
-		if (val.id && val?.coll?.name) {
+		const signature = definition.fields?.[key as keyof NamedDocument<Collection>]?.signature;
+
+		if (signature?.startsWith('Ref<')) {
 			return { ...acc, [key]: () => s[definition.name].byId(val.id) };
-		} else if (Array.isArray(val) && val.length > 0 && val[0]?.id && val[0]?.coll?.name) {
+		} else if (signature?.startsWith('Array<Ref<') && Array.isArray(val)) {
 			return {
 				...acc,
 				[key]: val.map((cur) => {
