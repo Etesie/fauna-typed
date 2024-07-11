@@ -17,8 +17,14 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
-import { toFaunaDoc, toFaunaReplaceDoc, toFaunaUpdateDoc } from '$lib/types/converters';
-import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
+import {
+	docCreateToDoc,
+	docReplaceToDoc,
+	docUpdateToDoc,
+	toFaunaDoc,
+	toFaunaReplaceDoc,
+	toFaunaUpdateDoc
+} from '$lib/types/converters';
 
 let s: DocumentStores = $state({});
 const CollectionStore = createCollectionStore();
