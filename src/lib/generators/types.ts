@@ -21,7 +21,7 @@ const checkOptional = (value: string) => {
 // Function to check signature of given data type
 const checkDataType = (
 	value: string,
-	expectedType: 'String' | 'Number' | 'Date' | 'Boolean' | 'Time' | 'Ref<' | 'Array<'
+	expectedType: 'String' | 'Number' | 'Date' | 'Boolean' | 'Time' | 'Null' | 'Ref<' | 'Array<'
 ) => {
 	return value.startsWith(expectedType);
 };
@@ -70,6 +70,10 @@ const getFieldType = (
 		// Number type
 		case checkDataType(value, 'Number'):
 			return constructTypeValue('number', isArray);
+
+		// Null type
+		case checkDataType(value, 'Null'):
+			return constructTypeValue('null', isArray);
 
 		// Time type
 		case checkDataType(value, 'Time'):
