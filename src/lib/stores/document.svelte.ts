@@ -68,19 +68,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		let id: string;
-		const ts: TimeStub = TimeStub.fromDate(new Date());
-		const coll: Module = new Module(COLL_NAME);
-		if (doc.id) {
-			id = doc.id;
-		} else {
-			id = 'TEMP_' + crypto.randomUUID();
-		}
-
-		// TODO: We need to identify computed fields like age automatically and replace it
-		const age: number = 0;
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			{ id, ts, coll, age, ...doc },
+			docCreateToDoc(doc, definition, s),
 			documentHandler
 		);
 
@@ -112,7 +101,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return newDoc;
 	};
 
-	const upsertObjectFromFauna = (doc: Functions<MainType, ReplaceType, UpdateType>) => {
+	const upsertObjectFromFauna = (
+		doc: Functions<MainType, ReplaceType, UpdateType>
+	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const newDoc = new Proxy(doc, documentHandler);
 
@@ -124,6 +115,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			current.push(newDoc);
 		}
 		toLocalStorage();
+		return newDoc;
 	};
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
@@ -303,60 +295,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return current.filter(filter);
 	};
 
-	const upsertObjectFromClient = (
-		doc: Document_Create<CreateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-
-		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition, s),
-			documentHandler
-		);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-
-			current.push(newDoc);
-		}
-		toLocalStorage();
-		return newDoc;
-	};
-
-	const upsertObjectFromStorage = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-			current.push(newDoc);
-		}
-		return newDoc;
-	};
-
-	const upsertObjectFromFauna = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-			current.push(newDoc);
-		}
-		toLocalStorage();
-		return newDoc;
-	};
 	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
