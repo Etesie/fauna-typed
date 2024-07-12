@@ -1,6 +1,5 @@
 import { Client, fql } from 'fauna';
-// import { FAUNA_ADMIN_KEY } from '$env/static/private';
-import { PUBLIC_FAUNA_ADMIN_KEY } from '$env/static/public';
+// import { PUBLIC_FAUNA_KEY } from '$env/static/public';
 
 /**
  * TODO: Initialize client
@@ -10,8 +9,8 @@ import { PUBLIC_FAUNA_ADMIN_KEY } from '$env/static/public';
 
 const client = new Client({
 	// secret: FAUNA_ADMIN_KEY
-	secret: PUBLIC_FAUNA_ADMIN_KEY
-	// secret: ''
+	// secret: PUBLIC_FAUNA_KEY
+	secret: ''
 });
 
 // Get a unique string-encoded 64-bit integer as string that is unique across all Fauna databases.
