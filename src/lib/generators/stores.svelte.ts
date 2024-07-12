@@ -2,13 +2,16 @@ import { createCollectionStore } from '$lib/stores/collection.svelte';
 import fs from 'fs';
 import path from 'path';
 import { NODE_ENV } from '$env/static/private';
+// TODO: BAD - need to replace it.
+import { client } from '$fauna-typed/client';
 
 type GenerateStoresOptions = {
 	generatedStoreDirPath?: string;
 	generatedStoreFileName?: string;
 };
 
-const collections = $state(createCollectionStore().all().data);
+// TODO: How to get the client from fauna-typed? It's in the user scope
+const collections = $state(createCollectionStore(client).all().data);
 
 const defaultGenerateStoreOptions = {
 	generatedStoreDirPath: 'src/fauna-typed',
@@ -19,6 +22,7 @@ const storeStr = `import { createCollectionStore } from '$lib/stores/collection.
 import { createDocumentStore } from '$lib/stores/document.svelte';
 import { asc, desc } from '$lib/stores/_shared/order';
 import type { DocumentStores } from '$lib/types/types';
+import { client } from './client';
 
 const documentStores: DocumentStores = {} as DocumentStores;
 
@@ -39,10 +43,10 @@ export const generateStores = (options?: GenerateStoresOptions) => {
 	const generatedStoreFileName =
 		options?.generatedStoreFileName || defaultGenerateStoreOptions.generatedStoreFileName;
 	const dir = `${process.cwd()}/`;
-	let documentStoreStr = 'const stores = {\n	Collection: createCollectionStore(),';
+	let documentStoreStr = 'const stores = {\n	Collection: createCollectionStore(client),';
 
 	collections.forEach((collection) => {
-		documentStoreStr += `\n\t${collection.name}: createDocumentStore('${collection.name}', documentStores),`;
+		documentStoreStr += `\n\t${collection.name}: createDocumentStore('${collection.name}', documentStores, client),`;
 	});
 
 	documentStoreStr += '\n};';
