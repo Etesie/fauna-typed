@@ -11,7 +11,7 @@
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));
 
-	const docFields = $derived(Object.entries(s[collectionName].definition.fields));
+	const docFields = $derived(Object.entries(s[collectionName]?.definition?.fields || {}));
 	const allFields = $derived([...Object.entries(baseFields), ...docFields]);
 
 	const allKeys = $derived(allFields.map((field) => field[0] as keyof Document<QueryValueObject>));
@@ -59,7 +59,7 @@
 	};
 
 	let docsPageFiltered = $derived(
-		s[collectionName].where(getWherePredicate(allKeys, filter)).order(...getSorters(sorter))
+		s[collectionName]?.where(getWherePredicate(allKeys, filter))?.order(...getSorters(sorter))
 	);
 
 	let newDoc = $state<Document_Create<any>>({});
@@ -107,7 +107,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each docsPageFiltered.data as doc, index}
+						{#each docsPageFiltered?.data || [] as doc, index}
 							<tr>
 								<td class="w-5">{index + 1}</td>
 								{#each allKeys as key}
