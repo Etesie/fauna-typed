@@ -37,8 +37,19 @@
 	const getWherePredicate = <T,>(
 		allKeys: (keyof T)[],
 		filter: Partial<Record<keyof T, string>>
-	): ((item: T) => boolean) => {
-		return (item: T) => {
+	): { fqlString: string; predicateFunction: (item: T) => boolean } => {
+		const fqlString = `(item) => {
+			let filter = ${JSON.stringify(filter)};
+			${JSON.stringify(allKeys)}.every((key) => {
+				const filterValue = filter[key];
+				if (filterValue isa String && filterValue.length > 0) {
+					item[key] && item[key] isa String && item[key].includes(filterValue);
+				}
+				true; // If the filter is empty or not a string, ignore this filter
+			});
+		}`;
+
+		const predicateFunction = (item: T) => {
 			return allKeys.every((key) => {
 				const filterValue = filter[key];
 				if (typeof filterValue === 'string' && filterValue) {
@@ -47,6 +58,8 @@
 				return true; // If the filter is empty or not a string, ignore this filter
 			});
 		};
+
+		return { fqlString, predicateFunction };
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
@@ -58,9 +71,11 @@
 		});
 	};
 
-	let docsPageFiltered = $derived(
-		s[collectionName]?.where(getWherePredicate(allKeys, filter))?.order(...getSorters(sorter))
-	);
+	let docsPageFiltered = $derived.by(() => {
+		const { fqlString, predicateFunction } = getWherePredicate(allKeys, filter);
+
+		return s[collectionName]?.where(predicateFunction, fqlString)?.order(...getSorters(sorter));
+	});
 
 	let newDoc = $state<Document_Create<any>>({});
 

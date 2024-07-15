@@ -182,9 +182,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					};
 
 				case 'where':
-					return (filter: Predicate<Document<MainType>>) => {
+					return (filter: Predicate<Document<MainType>>, fqlQuery?: string) => {
 						const result = new Page(getObjects(filter), undefined);
-						// db.where(filter);
+						db.where(fqlQuery);
 						return new Proxy(result, pageHandler);
 					};
 
