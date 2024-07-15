@@ -1,5 +1,4 @@
-import { type QuerySuccess, type QueryValueObject } from 'fauna';
-import { client, fql } from '../database/client';
+import { type QueryValueObject, Client } from 'fauna';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
@@ -25,9 +24,9 @@ import {
 	toFaunaReplaceDoc,
 	toFaunaUpdateDoc
 } from '$lib/types/converters';
+import { createDatabaseApi } from '$lib/database/fauna';
 
 let s: DocumentStores = $state({});
-const CollectionStore = createCollectionStore();
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -56,7 +55,8 @@ export type CreateDocumentStore<
 
 export const createDocumentStore = <K extends keyof TypeMapping>(
 	collectionName: K,
-	documentStores: DocumentStores
+	documentStores: DocumentStores,
+	client: Client
 ): CreateDocumentStore<
 	TypeMapping[K]['main'],
 	TypeMapping[K]['create'],
@@ -68,11 +68,75 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	type CreateType = EnforceQueryValueObjectExtension<TypeMapping[K]['create']>;
 	type ReplaceType = EnforceQueryValueObjectExtension<TypeMapping[K]['replace']>;
 	type UpdateType = EnforceQueryValueObjectExtension<TypeMapping[K]['update']>;
-
-	s = documentStores;
 	const COLL_NAME: string = collectionName;
 
-	const definition: NamedDocument<Collection> = CollectionStore.byName(COLL_NAME);
+	const upsertObjectFromClient = (
+		doc: Document_Create<CreateType>
+	): Functions<MainType, ReplaceType, UpdateType> => {
+		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+
+		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
+			docCreateToDoc(doc, definition, s),
+			documentHandler
+		);
+
+		upsertObjectFromFauna(doc);
+
+		if (index > -1) {
+			addToPast();
+			current[index] = newDoc;
+		} else {
+			addToPast();
+
+			current.push(newDoc);
+		}
+		toLocalStorage();
+		return newDoc;
+	};
+
+	const upsertObjectFromStorage = (
+		doc: Functions<MainType, ReplaceType, UpdateType>
+	): Functions<MainType, ReplaceType, UpdateType> => {
+		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const newDoc = new Proxy(doc, documentHandler);
+
+		if (index > -1) {
+			addToPast();
+			current[index] = newDoc;
+		} else {
+			addToPast();
+			current.push(newDoc);
+		}
+		return newDoc;
+	};
+
+	const upsertObjectFromFauna = (
+		doc: Functions<MainType, ReplaceType, UpdateType>
+	): Functions<MainType, ReplaceType, UpdateType> => {
+		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const newDoc = new Proxy(doc, documentHandler);
+
+		const faunaDoc = toFaunaDoc(doc, definition);
+		console.log(faunaDoc);
+
+		if (index > -1) {
+			addToPast();
+			current[index] = newDoc;
+		} else {
+			addToPast();
+			current.push(newDoc);
+		}
+		toLocalStorage();
+		return newDoc;
+	};
+
+	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
+	const Collection = createCollectionStore(client);
+	console.log('Collection | document.svelte.ts L130', Collection);
+
+	s = documentStores;
+
+	const definition = Collection.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -118,14 +182,14 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							current,
 							undefined
 						);
-						// fetchAllFromDB(result);
+						db.all();
 						return new Proxy(result, pageHandler);
 					};
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
 						const result = new Page(getObjects(filter), undefined);
-						// fetchWhereFromDB(result);
+						// db.where(filter);
 						return new Proxy(result, pageHandler);
 					};
 
@@ -137,6 +201,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
+					console.log('\ndefinition (document.svelte.ts L198):\n', definition);
 					return definition;
 
 				/*************
@@ -242,65 +307,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return current.filter(filter);
 	};
 
-	const upsertObjectFromClient = (
-		doc: Document_Create<CreateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-
-		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition, s),
-			documentHandler
-		);
-		upsertObjectFromFauna(doc);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-
-			current.push(newDoc);
-		}
-		toLocalStorage();
-		return newDoc;
-	};
-
-	const upsertObjectFromStorage = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-			current.push(newDoc);
-		}
-		return newDoc;
-	};
-
-	const upsertObjectFromFauna = (
-		doc: Document_Create<CreateType>
-	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
-
-		const faunaDoc = toFaunaDoc(doc, definition);
-		console.log(faunaDoc);
-
-		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
-		} else {
-			addToPast();
-			current.push(newDoc);
-		}
-		toLocalStorage();
-		return newDoc;
-	};
-
 	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
@@ -362,42 +368,11 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		future = [];
 	};
 
-	// TODO: change type to T
-	async function fetchAllFromDB(page: Page<Functions<MainType, ReplaceType, UpdateType>>) {
-		try {
-			const response: QuerySuccess<Page<Functions<MainType, ReplaceType, UpdateType>>> =
-				await client.query<Page<Functions<MainType, ReplaceType, UpdateType>>>(fql`User.all()`);
-			if (response.data) {
-				// const data: User[] = response.data.data.map(
-				// 	(userWithoutMethods) => new User(userWithoutMethods)
-				// );
-
-				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				response.data.data.forEach((newDoc) => {
-					const existingUserIndex = page.data.findIndex((doc) => newDoc.id === doc.id);
-					if (existingUserIndex !== -1) {
-						// Replace the existing document with the new document
-						page.data[existingUserIndex] = newDoc;
-					} else {
-						// Add the new document to the store
-						page.data.push(newDoc);
-					}
-				});
-
-				// TODO: Update also the localStorage
-
-				// Object.assign(page, updatedStore);
-			}
-		} catch (error) {
-			console.error('Error fetching document from database:', error);
-		}
-	}
-
 	fromLocalStorage();
 	return new Proxy({}, createStoreHandler) as unknown as CreateDocumentStore<
-		MainType,
-		CreateType,
-		ReplaceType,
-		UpdateType
+		TypeMapping[K]['main'],
+		TypeMapping[K]['create'],
+		TypeMapping[K]['replace'],
+		TypeMapping[K]['update']
 	>;
 };
