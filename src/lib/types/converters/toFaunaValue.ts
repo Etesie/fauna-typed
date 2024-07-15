@@ -16,7 +16,7 @@ export const toFaunaValue = (docValue: QueryValue, fieldValue: Field) => {
 	const isReferenceType = fieldValue.signature.includes('Ref<');
 
 	if (isReferenceType) {
-		value = toFaunaReference(value as DocumentReference | DocumentReference[]);
+		value = value ? toFaunaReference(value as DocumentReference | DocumentReference[]) : null;
 	}
 
 	return value;
