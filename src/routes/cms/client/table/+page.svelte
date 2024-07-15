@@ -41,11 +41,12 @@
 		const fqlString = `(item) => {
 			let filter = ${JSON.stringify(filter)};
 			${JSON.stringify(allKeys)}.every((key) => {
-				const filterValue = filter[key];
+				let filterValue = filter[key];
 				if (filterValue isa String && filterValue.length > 0) {
-					item[key] && item[key] isa String && item[key].includes(filterValue);
+					item[key] isa String && item[key].length > 0 && item[key].includes(filterValue);
+				} else {
+					true; // If the filter is empty or not a string, ignore this filter 
 				}
-				true; // If the filter is empty or not a string, ignore this filter
 			});
 		}`;
 
