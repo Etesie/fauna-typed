@@ -38,18 +38,6 @@
 		allKeys: (keyof T)[],
 		filter: Partial<Record<keyof T, string>>
 	): { fqlString: string; predicateFunction: (item: T) => boolean } => {
-		const fqlString = `(item) => {
-			let filter = ${JSON.stringify(filter)};
-			${JSON.stringify(allKeys)}.every((key) => {
-				let filterValue = filter[key];
-				if (filterValue isa String && filterValue.length > 0) {
-					item[key] isa String && item[key].length > 0 && item[key].includes(filterValue);
-				} else {
-					true; // If the filter is empty or not a string, ignore this filter 
-				}
-			});
-		}`;
-
 		const predicateFunction = (item: T) => {
 			return allKeys.every((key) => {
 				const filterValue = filter[key];
@@ -60,6 +48,14 @@
 			});
 		};
 
+		const predictionStr = `${Object.entries(filter)
+			.filter(([filterKey, filterVal]) => typeof filterVal === 'string' && filterVal)
+			.map(([key, value]) => `item.${key}.includes("${value}")`)
+			.join(' && ')}`;
+
+		const fqlString = `(item) => ${predictionStr.length ? predictionStr : true}`;
+
+		console.log({ fqlString });
 		return { fqlString, predicateFunction };
 	};
 
