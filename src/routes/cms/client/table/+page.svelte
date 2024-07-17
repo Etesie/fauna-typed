@@ -35,15 +35,14 @@
 	let sorter: Sorter[] = $state([]);
 
 	const getWherePredicate = <T,>(
-		allKeys: (keyof T)[],
 		filter: Partial<Record<keyof T, string>>
-	): `(item) => ${string}` => {
-		const predictionStr = `${Object.entries(filter)
+	): ((item: T) => boolean) => {
+		const queryCondition = Object.entries(filter)
 			.filter(([filterKey, filterVal]) => typeof filterVal === 'string' && filterVal)
 			.map(([key, value]) => `item.${key}?.includes("${value}")`)
-			.join(' && ')}`;
+			.join(' && ');
 
-		return `(item) => ${predictionStr.length ? predictionStr : true}`;
+		return new Function('item', `return (item) => ${queryCondition || true} `)();
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
@@ -56,7 +55,7 @@
 	};
 
 	let docsPageFiltered = $derived(
-		s[collectionName]?.where(getWherePredicate(allKeys, filter))?.order(...getSorters(sorter))
+		s[collectionName]?.where(getWherePredicate(filter))?.order(...getSorters(sorter))
 	);
 
 	let newDoc = $state<Document_Create<any>>({});

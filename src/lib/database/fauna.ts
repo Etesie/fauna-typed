@@ -34,9 +34,7 @@ export const createDatabaseApi = <
 
 	async function where(filter: string) {
 		try {
-			const query = `${COLL_NAME}.where(${filter})`
-				.replaceAll('return ', '')
-				.replaceAll('const ', 'let ');
+			const query = `${COLL_NAME}.where(${filter})`;
 
 			console.log('where:', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
