@@ -18,10 +18,11 @@ export const createDatabaseApi = <
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
-			console.log('\nfauna.ts - all:\n', query);
+			// console.log('\nfauna.ts - all:\n', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data && response.data.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				// console.log('\nresponse.data.data | fauna.ts L25\n', response.data.data);
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
@@ -42,10 +43,6 @@ export const createDatabaseApi = <
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
-
-				// TODO: Update also the localStorage
-
-				// Object.assign(page, updatedStore);
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);

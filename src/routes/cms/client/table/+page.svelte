@@ -62,7 +62,7 @@
 	let newDoc = $state<Document_Create<any>>({});
 
 	async function createDoc() {
-		console.log('New doc: ', newDoc);
+		console.log('New doc: ', newDoc, '| /table/+page.svelte L68');
 		s[collectionName].create(newDoc);
 		newDoc = {};
 

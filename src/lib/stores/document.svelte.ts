@@ -16,6 +16,7 @@ import {
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
+import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
 
 let s: DocumentStores = $state({});
@@ -67,19 +68,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		let id: string;
-		const ts: TimeStub = TimeStub.fromDate(new Date());
-		const coll: Module = new Module(COLL_NAME);
-		if (doc.id) {
-			id = doc.id;
-		} else {
-			id = 'TEMP_' + crypto.randomUUID();
-		}
-
-		// TODO: We need to identify computed fields like age automatically and replace it
-		const age: number = 0;
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			{ id, ts, coll, age, ...doc },
+			docCreateToDoc(doc, definition, s),
 			documentHandler
 		);
 
@@ -111,7 +101,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return newDoc;
 	};
 
-	const upsertObjectFromFauna = (doc: Functions<MainType, ReplaceType, UpdateType>) => {
+	const upsertObjectFromFauna = (
+		doc: Functions<MainType, ReplaceType, UpdateType>
+	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const newDoc = new Proxy(doc, documentHandler);
 
@@ -123,6 +115,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			current.push(newDoc);
 		}
 		toLocalStorage();
+		return newDoc;
 	};
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
@@ -307,24 +300,18 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			Object.assign(doc, fields);
+			const converted = docUpdateToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
-			return doc;
 		}
 	};
 
 	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
+		const doc = current.find((u) => $state.is(u.id, id));
+		if (doc) {
 			addToPast();
-			Object.assign(current[index], fields);
-			Object.keys(current[index]).forEach((key) => {
-				if (!(key in fields)) {
-					if (key !== 'id' && key !== 'ts' && key !== 'coll') {
-						delete current[index][key];
-					}
-				}
-			});
+			const converted = docReplaceToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
 			toLocalStorage();
 		}
 	};
