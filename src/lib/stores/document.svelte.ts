@@ -32,7 +32,9 @@ export type CreateDocumentStore<
 	last: () => Functions<T, T_Replace, T_Update>;
 	all: () => Page<Functions<T, T_Replace, T_Update>>;
 	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
-	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
+	where: (
+		filter: Predicate<Document<T>> | `(item) => ${string}`
+	) => Page<Functions<T, T_Replace, T_Update>>;
 	create: (doc: Document_Create<T_Create>) => Functions<T, T_Replace, T_Update>;
 	definition: NamedDocument<Collection>;
 
