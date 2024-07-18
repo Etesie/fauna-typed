@@ -36,8 +36,7 @@ type CreateCollectionStore = {
 const createDocumentHandler = (name: string) => {
 	return {
 		get(target: any, prop: any, receiver: any): any {
-			const latestData = getObjects((doc) => doc.name === name).at(0) || {};
-
+			const latestData = $state(getObjects((doc) => doc.name === name).at(0) || {});
 			// Special handling for accessing the whole object
 			if (prop === Symbol.toPrimitive) {
 				return (hint) => {
