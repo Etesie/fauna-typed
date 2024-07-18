@@ -177,14 +177,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
 						const result = new Page(getObjects(filter), undefined);
-
-						const faunaQuery = filter
-							.toString()
-							.replaceAll('return ', '')
-							.replaceAll('const ', 'let ');
-
-						db.where(faunaQuery);
-
+						db.where(filter);
 						return new Proxy(result, pageHandler);
 					};
 

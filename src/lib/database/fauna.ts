@@ -3,7 +3,7 @@ import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject> = {
 	all: () => Promise<void>;
-	where: (filter: string) => Promise<void>;
+	where: (filter: Predicate<Document<T>>) => Promise<void>;
 };
 
 export const createDatabaseApi = <
@@ -32,9 +32,11 @@ export const createDatabaseApi = <
 		}
 	}
 
-	async function where(filter: string) {
+	async function where(filter: Predicate<Document<T>>) {
 		try {
-			const query = `${COLL_NAME}.where(${filter})`;
+			const query = `${COLL_NAME}.where(${filter.toString()})`
+				.replaceAll('return ', '')
+				.replaceAll('const ', 'let ');
 
 			console.log('where:', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
