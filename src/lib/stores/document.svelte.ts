@@ -156,6 +156,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'first':
 					return () => {
+						db.first();
 						return current.at(0);
 					};
 

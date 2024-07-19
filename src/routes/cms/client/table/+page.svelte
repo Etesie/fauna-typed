@@ -16,6 +16,8 @@
 
 	const allKeys = $derived(allFields.map((field) => field[0] as keyof Document<QueryValueObject>));
 
+	const firstDoc = $derived(s[collectionName]?.first() || {});
+
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
 	};
@@ -151,4 +153,24 @@
 	</div>
 	<div><h3 class="h3">Sort</h3></div>
 	<Sort objectKeys={allKeys} {sorter} class="w-80" />
+</div>
+
+<div class=" p-4">
+	<div class="h4">Data using first</div>
+	<table class="table w-full table-auto">
+		<thead>
+			<tr>
+				{#each allKeys || [] as allKey}
+					<th>{allKey}</th>
+				{/each}
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				{#each allKeys || [] as allKey}
+					<td>{firstDoc[allKey] || ''}</td>
+				{/each}
+			</tr>
+		</tbody>
+	</table>
 </div>
