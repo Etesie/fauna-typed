@@ -87,14 +87,22 @@ type NamedFunctions<
 
 class Page<T extends QueryValueObject> {
 	data: T[];
-	after?: string | number;
+	localCursor?: number;
+	after?: Promise<string | void | undefined>;
 
-	constructor(data: T[], after?: string | number) {
+	constructor(data: T[], localCursor?: number, after?: Promise<string | void | undefined>) {
 		this.data = data;
 		if (after) {
 			this.after = after;
 		}
+		if (localCursor) {
+			this.localCursor = localCursor;
+		}
 	}
+
+	updateAfter = (after: Promise<string | void | undefined>) => {
+		this.after = after;
+	};
 
 	/**
 	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.

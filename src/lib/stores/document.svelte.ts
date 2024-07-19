@@ -112,6 +112,12 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							current.slice(0, pageSize),
 							current.length > pageSize ? 1 : undefined
 						);
+						result.updateAfter(
+							fetchAllFromDB(result).then(
+								(res) => res,
+								(e) => console.log(e)
+							)
+						);
 						// fetchAllFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
@@ -190,12 +196,21 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'data':
 					return target.data;
 				case 'after':
-					return () => {
-						if (target?.after && typeof target?.after === 'number') {
+					return async () => {
+						const after = await target?.after;
+						const cursor = target?.localCursor;
+
+						if (cursor && after) {
 							const pageSize = 16;
 							const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-								current.slice(pageSize * target?.after, pageSize * (target?.after + 1)),
-								current.length > pageSize * (target?.after + 1) ? target?.after + 1 : undefined
+								current.slice(pageSize * cursor, pageSize * (cursor + 1)),
+								current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined
+							);
+							result.updateAfter(
+								fetchPaginatedFromDB(result, after).then(
+									(res) => res,
+									(e) => console.log(e)
+								)
 							);
 							return new Proxy(result, pageHandler);
 						}
@@ -367,6 +382,31 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		future = [];
 	};
 
+	async function fetchPaginatedFromDB(
+		page: Page<Functions<MainType, ReplaceType, UpdateType>>,
+		after: string
+	) {
+		try {
+			const response: QuerySuccess<Page<Functions<MainType, ReplaceType, UpdateType>>> =
+				await client.query<Page<Functions<MainType, ReplaceType, UpdateType>>>(
+					fql`Set.paginate(${after})`
+				);
+
+			if (response.data) {
+				response.data.data.forEach((newDoc) => {
+					const existingUserIndex = page.data.findIndex((doc) => newDoc.id === doc.id);
+					if (existingUserIndex !== -1) {
+						page.data[existingUserIndex] = newDoc;
+					} else {
+						page.data.push(newDoc);
+					}
+				});
+				return response.data.after;
+			}
+		} catch (error) {
+			console.error('Error fetching paginated data from database:', error);
+		}
+	}
 	// TODO: change type to T
 	async function fetchAllFromDB(page: Page<Functions<MainType, ReplaceType, UpdateType>>) {
 		try {
@@ -388,6 +428,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 						page.data.push(newDoc);
 					}
 				});
+				return response.data.after;
 
 				// TODO: Update also the localStorage
 
