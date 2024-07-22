@@ -6,6 +6,7 @@ export type CreateDatabaseApi<T extends QueryValueObject> = {
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
+	last: () => Promise<void>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -87,10 +88,26 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function last() {
+		try {
+			const query = `${COLL_NAME}.all().last()`;
+
+			console.log('last:', query);
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using last:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
 		first,
-		firstWhere
+		firstWhere,
+		last
 	};
 };

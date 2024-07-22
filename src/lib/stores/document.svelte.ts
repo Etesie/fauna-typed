@@ -163,6 +163,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'last':
 					return () => {
+						db.last();
 						return current.at(-1);
 					};
 
