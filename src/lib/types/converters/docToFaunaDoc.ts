@@ -1,10 +1,10 @@
 import type { QueryValueObject } from 'fauna';
 import { type Collection, type Document_Create } from '../types';
-import { toFaunaValue } from './toFaunaValue';
+import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValues';
 
 export const TEMP_ID_PREFIX = 'TEMP_';
 
-export const toFaunaDoc = <T extends QueryValueObject>(
+export const docToFaunaDoc = <T extends QueryValueObject>(
 	doc: Document_Create<T>,
 	collection: Collection
 ) => {
@@ -20,7 +20,7 @@ export const toFaunaDoc = <T extends QueryValueObject>(
 		const value = doc[fieldName];
 
 		if (value !== undefined) {
-			faunaDocData[fieldName] = toFaunaValue(value, fieldValue);
+			faunaDocData[fieldName] = transformDocValueToFaunaValue(value, fieldValue);
 		}
 	});
 

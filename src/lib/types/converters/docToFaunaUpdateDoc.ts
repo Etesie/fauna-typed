@@ -1,8 +1,8 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Update } from '../types';
-import { toFaunaValue } from './toFaunaValue';
+import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValues';
 
-export const toFaunaUpdateDoc = <T_Update extends QueryValueObject>(
+export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	fields: Document_Update<T_Update>,
 	collection: Collection
 ) => {
@@ -16,7 +16,7 @@ export const toFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 		const value = fields[fieldName as keyof typeof fields];
 
 		if (value !== undefined) {
-			faunaDocData[fieldName] = toFaunaValue(value, fieldValue);
+			faunaDocData[fieldName] = transformDocValueToFaunaValue(value, fieldValue);
 		}
 	});
 

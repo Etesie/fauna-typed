@@ -1,8 +1,8 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Replace } from '../types';
-import { toFaunaValue } from './toFaunaValue';
+import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValues';
 
-export const toFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
+export const docToFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
 	fields: Document_Replace<T_Replace>,
 	collection: Collection
 ) => {
@@ -11,7 +11,7 @@ export const toFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
 	};
 
 	Object.entries(collection?.fields || {}).forEach(([fieldName, fieldValue]) => {
-		faunaDocData[fieldName] = toFaunaValue(fields[fieldName] || null, fieldValue);
+		faunaDocData[fieldName] = transformDocValueToFaunaValue(fields[fieldName] || null, fieldValue);
 	});
 
 	return faunaDocData;

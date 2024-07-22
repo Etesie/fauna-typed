@@ -20,9 +20,8 @@ import {
 	docCreateToDoc,
 	docReplaceToDoc,
 	docUpdateToDoc,
-	toFaunaDoc,
-	toFaunaReplaceDoc,
-	toFaunaUpdateDoc
+	docToFaunaReplaceDoc,
+	docToFaunaUpdateDoc
 } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
 
@@ -115,9 +114,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 		const newDoc = new Proxy(doc, documentHandler);
-
-		const faunaDoc = toFaunaDoc(doc, definition);
-		console.log(faunaDoc);
 
 		if (index > -1) {
 			addToPast();
@@ -316,7 +312,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			Object.assign(doc, converted);
 			toLocalStorage();
 
-			const faunaDoc = toFaunaUpdateDoc(fields, definition);
+			const faunaDoc = docToFaunaUpdateDoc(fields, definition);
 			console.log({ faunaDoc });
 			return doc;
 		}
@@ -330,7 +326,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			Object.assign(doc, converted);
 			toLocalStorage();
 
-			const faunaDoc = toFaunaReplaceDoc(fields, definition);
+			const faunaDoc = docToFaunaReplaceDoc(fields, definition);
 			console.log({ faunaDoc });
 		}
 	};

@@ -1,7 +1,7 @@
 import { DocumentReference, type QueryValue } from 'fauna';
 import type { Field } from '../types';
 
-const toFaunaReference = (value: DocumentReference | DocumentReference[]) => {
+const transformToFaunaReference = (value: DocumentReference | DocumentReference[]) => {
 	if (Array.isArray(value)) {
 		return value.map((val) => new DocumentReference({ coll: val.coll, id: val.id }));
 	} else {
@@ -11,12 +11,14 @@ const toFaunaReference = (value: DocumentReference | DocumentReference[]) => {
 	}
 };
 
-export const toFaunaValue = (docValue: QueryValue, fieldValue: Field) => {
+export const transformDocValueToFaunaValue = (docValue: QueryValue, fieldValue: Field) => {
 	let value = docValue;
 	const isReferenceType = fieldValue.signature.includes('Ref<');
 
 	if (isReferenceType) {
-		value = value ? toFaunaReference(value as DocumentReference | DocumentReference[]) : null;
+		value = value
+			? transformToFaunaReference(value as DocumentReference | DocumentReference[])
+			: null;
 	}
 
 	return value;
