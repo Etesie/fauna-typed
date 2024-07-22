@@ -1,6 +1,8 @@
 import type { QueryValueObject } from 'fauna';
-import { TEMP_ID_PREFIX, type Collection, type Document_Create } from '../types';
+import { type Collection, type Document_Create } from '../types';
 import { toFaunaValue } from './toFaunaValue';
+
+export const TEMP_ID_PREFIX = 'TEMP_';
 
 export const toFaunaDoc = <T extends QueryValueObject>(
 	doc: Document_Create<T>,
