@@ -198,6 +198,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'create':
 					return (document: Document_Create<CreateType>) => {
+						db.create(document, definition);
 						return upsertObjectFromClient(document);
 					};
 

@@ -1,12 +1,25 @@
-import type { Functions, Page, Predicate, Document } from '$lib/types/types';
+import type { TypeMapping } from '$fauna-typed/types';
+import { docToFaunaDoc } from '$lib/types/converters';
+import type {
+	Functions,
+	Page,
+	Predicate,
+	Document,
+	Document_Create,
+	Collection
+} from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
-export type CreateDatabaseApi<T extends QueryValueObject> = {
+export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
 	all: () => Promise<void>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
 	last: () => Promise<void>;
+	create: (
+		document: Document_Create<TypeMapping[K]['create']>,
+		collection: Collection
+	) => Promise<void>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -18,12 +31,13 @@ const transformWherePredicateToFauna = <T extends QueryValueObject>(
 export const createDatabaseApi = <
 	T extends QueryValueObject,
 	T_Replace extends QueryValueObject,
-	T_Update extends QueryValueObject
+	T_Update extends QueryValueObject,
+	K extends keyof TypeMapping
 >(
 	client: Client,
 	COLL_NAME: string,
 	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>) => void
-): CreateDatabaseApi<T> => {
+): CreateDatabaseApi<T, K> => {
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
@@ -103,11 +117,30 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function create(
+		document: Document_Create<TypeMapping[K]['create']>,
+		collection: Collection
+	) {
+		try {
+			const query = `${COLL_NAME}.create(${docToFaunaDoc(document, collection)})`;
+
+			console.log('create:', query);
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using create:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
 		first,
 		firstWhere,
-		last
+		last,
+		create
 	};
 };
