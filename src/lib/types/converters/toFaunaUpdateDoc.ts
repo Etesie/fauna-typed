@@ -6,19 +6,19 @@ export const toFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	fields: Document_Update<T_Update>,
 	collection: Collection
 ) => {
-	const fauanDocData: QueryValueObject = {};
+	const faunaDocData: QueryValueObject = {};
 
 	if (fields.ttl !== undefined) {
-		fauanDocData.ttl = fields.ttl || null;
+		faunaDocData.ttl = fields.ttl || null;
 	}
 
 	Object.entries(collection?.fields || {}).forEach(([fieldName, fieldValue]) => {
 		const value = fields[fieldName as keyof typeof fields];
 
 		if (value !== undefined) {
-			fauanDocData[fieldName] = toFaunaValue(value, fieldValue);
+			faunaDocData[fieldName] = toFaunaValue(value, fieldValue);
 		}
 	});
 
-	return fauanDocData;
+	return faunaDocData;
 };
