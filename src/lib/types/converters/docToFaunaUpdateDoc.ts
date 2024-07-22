@@ -1,6 +1,9 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Update } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
+import {
+	removeDoubleQuotesFromReference,
+	transformDocValueToFaunaValue
+} from './transformDocValueToFaunaValue';
 
 export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	fields: Document_Update<T_Update>,
@@ -20,5 +23,5 @@ export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 		}
 	});
 
-	return faunaDocData;
+	return removeDoubleQuotesFromReference(JSON.stringify(faunaDocData));
 };

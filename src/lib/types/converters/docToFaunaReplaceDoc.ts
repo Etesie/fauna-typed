@@ -1,6 +1,9 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Replace } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
+import {
+	removeDoubleQuotesFromReference,
+	transformDocValueToFaunaValue
+} from './transformDocValueToFaunaValue';
 
 export const docToFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
 	fields: Document_Replace<T_Replace>,
@@ -14,5 +17,5 @@ export const docToFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
 		faunaDocData[fieldName] = transformDocValueToFaunaValue(fields[fieldName] || null, fieldValue);
 	});
 
-	return faunaDocData;
+	return removeDoubleQuotesFromReference(JSON.stringify(faunaDocData));
 };

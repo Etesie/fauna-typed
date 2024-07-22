@@ -1,6 +1,9 @@
 import type { QueryValueObject } from 'fauna';
 import { type Collection, type Document_Create } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
+import {
+	removeDoubleQuotesFromReference,
+	transformDocValueToFaunaValue
+} from './transformDocValueToFaunaValue';
 
 export const TEMP_ID_PREFIX = 'TEMP_';
 
@@ -24,5 +27,5 @@ export const docToFaunaDoc = <T extends QueryValueObject>(
 		}
 	});
 
-	return faunaDocData;
+	return removeDoubleQuotesFromReference(JSON.stringify(faunaDocData));
 };
