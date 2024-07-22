@@ -33,6 +33,7 @@ export type CreateDocumentStore<
 	all: () => Page<Functions<T, T_Replace, T_Update>>;
 	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
 	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
+	firstWhere: (filter: Predicate<Document<T>>) => Functions<T, T_Replace, T_Update>;
 	create: (doc: Document_Create<T_Create>) => Functions<T, T_Replace, T_Update>;
 	definition: NamedDocument<Collection>;
 
@@ -181,6 +182,12 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 						const result = new Page(getObjects(filter), undefined);
 						db.where(filter);
 						return new Proxy(result, pageHandler);
+					};
+
+				case 'firstWhere':
+					return (filter: Predicate<Document<MainType>>) => {
+						db.firstWhere(filter);
+						return getObjects(filter).at(0);
 					};
 
 				case 'create':
