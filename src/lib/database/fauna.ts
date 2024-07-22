@@ -5,6 +5,7 @@ export type CreateDatabaseApi<T extends QueryValueObject> = {
 	all: () => Promise<void>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
+	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
 };
 
 export const createDatabaseApi = <
@@ -67,9 +68,27 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function firstWhere(filter: Predicate<Document<T>>) {
+		try {
+			const query = `${COLL_NAME}.firstWhere(${filter.toString()})`
+				.replaceAll('return ', '')
+				.replaceAll('const ', 'let ');
+
+			console.log('firstWhere:', query);
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using firstWhere:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
-		first
+		first,
+		firstWhere
 	};
 };
