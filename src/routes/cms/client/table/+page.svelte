@@ -16,6 +16,8 @@
 
 	const allKeys = $derived(allFields.map((field) => field[0] as keyof Document<QueryValueObject>));
 
+	const firstDoc = $derived(s[collectionName]?.first() || {});
+
 	type StringifyProperties<T> = {
 		[K in keyof T]: string;
 	};
@@ -35,18 +37,14 @@
 	let sorter: Sorter[] = $state([]);
 
 	const getWherePredicate = <T,>(
-		allKeys: (keyof T)[],
 		filter: Partial<Record<keyof T, string>>
 	): ((item: T) => boolean) => {
-		return (item: T) => {
-			return allKeys.every((key) => {
-				const filterValue = filter[key];
-				if (typeof filterValue === 'string' && filterValue) {
-					return item[key] && typeof item[key] === 'string' && item[key].includes(filterValue);
-				}
-				return true; // If the filter is empty or not a string, ignore this filter
-			});
-		};
+		const queryCondition = Object.entries(filter)
+			.filter(([filterKey, filterVal]) => typeof filterVal === 'string' && filterVal)
+			.map(([key, value]) => `item.${key}?.includes("${value}")`)
+			.join(' && ');
+
+		return new Function('item', `return (item) => ${queryCondition || true} `)();
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
@@ -59,7 +57,7 @@
 	};
 
 	let docsPageFiltered = $derived(
-		s[collectionName]?.where(getWherePredicate(allKeys, filter))?.order(...getSorters(sorter))
+		s[collectionName]?.where(getWherePredicate(filter))?.order(...getSorters(sorter))
 	);
 
 	let newDoc = $state<Document_Create<any>>({});
@@ -159,4 +157,24 @@
 	</div>
 	<div><h3 class="h3">Sort</h3></div>
 	<Sort objectKeys={allKeys} {sorter} class="w-80" />
+</div>
+
+<div class=" p-4">
+	<div class="h4">Data using first</div>
+	<table class="table w-full table-auto">
+		<thead>
+			<tr>
+				{#each allKeys || [] as allKey}
+					<th>{allKey}</th>
+				{/each}
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				{#each allKeys || [] as allKey}
+					<td>{firstDoc[allKey] || ''}</td>
+				{/each}
+			</tr>
+		</tbody>
+	</table>
 </div>
