@@ -1,6 +1,6 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Replace } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValues';
+import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
 
 export const docToFaunaReplaceDoc = <T_Replace extends QueryValueObject>(
 	fields: Document_Replace<T_Replace>,

@@ -1,6 +1,6 @@
 import type { QueryValueObject } from 'fauna';
 import { type Collection, type Document_Create } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValues';
+import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
 
 export const TEMP_ID_PREFIX = 'TEMP_';
 
