@@ -79,8 +79,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			documentHandler
 		);
 
-		upsertObjectFromFauna(doc);
-
 		if (index > -1) {
 			addToPast();
 			current[index] = newDoc;
