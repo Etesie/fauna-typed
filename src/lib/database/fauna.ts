@@ -8,6 +8,12 @@ export type CreateDatabaseApi<T extends QueryValueObject> = {
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
 };
 
+const transformWherePredicateToFauna = <T extends QueryValueObject>(
+	filter: Predicate<Document<T>>
+) => {
+	return filter.toString().replaceAll('return ', '').replaceAll('const ', 'let ');
+};
+
 export const createDatabaseApi = <
 	T extends QueryValueObject,
 	T_Replace extends QueryValueObject,
@@ -36,9 +42,7 @@ export const createDatabaseApi = <
 
 	async function where(filter: Predicate<Document<T>>) {
 		try {
-			const query = `${COLL_NAME}.where(${filter.toString()})`
-				.replaceAll('return ', '')
-				.replaceAll('const ', 'let ');
+			const query = `${COLL_NAME}.where(${transformWherePredicateToFauna(filter)})`;
 
 			console.log('where:', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
@@ -70,9 +74,7 @@ export const createDatabaseApi = <
 
 	async function firstWhere(filter: Predicate<Document<T>>) {
 		try {
-			const query = `${COLL_NAME}.firstWhere(${filter.toString()})`
-				.replaceAll('return ', '')
-				.replaceAll('const ', 'let ');
+			const query = `${COLL_NAME}.firstWhere(${transformWherePredicateToFauna(filter)})`;
 
 			console.log('firstWhere:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
