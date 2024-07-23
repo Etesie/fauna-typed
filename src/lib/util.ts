@@ -58,3 +58,13 @@ export const flyAndScale = (
         easing: cubicOut
     };
 };
+
+export const isValidJSON = (str: string): boolean => {
+    try {
+        JSON.parse(str);
+        return true;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+        return false;
+    }
+};
