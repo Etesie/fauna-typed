@@ -1,9 +1,10 @@
 import { type QueryValueObject } from 'fauna';
 import { type Collection, type Document_Update } from '../types';
 import {
-	removeQuotesFromByIdReference,
-	transformDocValueToFaunaValue
+	transformDocValueToFaunaValue,
+	transformToFaunaTime
 } from './transformDocValueToFaunaValue';
+import { removeRelevantQuotesFromFaunaString } from './utils';
 
 export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	fields: Document_Update<T_Update>,
@@ -12,7 +13,7 @@ export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	const faunaDocData: QueryValueObject = {};
 
 	if (fields.ttl !== undefined) {
-		faunaDocData.ttl = fields.ttl || null;
+		faunaDocData.ttl = fields.ttl ? transformToFaunaTime(fields.ttl) : null;
 	}
 
 	Object.entries(collection?.fields || {}).forEach(([fieldName, fieldValue]) => {
@@ -23,5 +24,5 @@ export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 		}
 	});
 
-	return removeQuotesFromByIdReference(JSON.stringify(faunaDocData));
+	return removeRelevantQuotesFromFaunaString(JSON.stringify(faunaDocData));
 };
