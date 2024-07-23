@@ -28,7 +28,7 @@ const transformToFaunaReference = (
 	return `${referencedCollName}.byId('${referenceValue}')`;
 };
 
-export const removeDoubleQuotesFromReference = (str: string): string => {
+export const removeQuotesFromByIdReference = (str: string): string => {
 	return str.replaceAll(/"([a-zA-Z]+\.byId\('[0-9]+'\))"/g, '$1');
 };
 
