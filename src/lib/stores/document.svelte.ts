@@ -111,13 +111,13 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
 							current.slice(0, pageSize)
 						);
-						const cursor = current.length > pageSize ? 1 : undefined;
-						const after = fetchAllFromDB(result).then(
+						result.after = fetchAllFromDB(result).then(
 							(res) => res,
 							(e) => console.error(e)
 						);
+						const cursor = current.length > pageSize ? 1 : undefined;
 						// fetchAllFromDB(result);
-						return new Proxy(result, getPageHandler(cursor, after));
+						return new Proxy(result, getPageHandler(cursor));
 					};
 
 				case 'where':
@@ -184,7 +184,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const getPageHandler = (cursor?: number, after?: Promise<string | void | undefined>) => {
+	const getPageHandler = (cursor?: number) => {
 		return {
 			get(
 				target: Page<Document<MainType>>,
@@ -196,19 +196,19 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 						return target.data;
 					case 'after':
 						return async () => {
-							const afterValue = await after;
+							const afterValue = await target.after;
 
 							if (cursor && afterValue) {
 								const pageSize = 16;
 								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
 									current.slice(pageSize * cursor, pageSize * (cursor + 1))
 								);
-								const newCursor = current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined;
-								const newAfter = fetchPaginatedFromDB(result, afterValue).then(
+								result.after = fetchPaginatedFromDB(result, afterValue).then(
 									(res) => res,
 									(e) => console.error(e)
 								);
-								return new Proxy(result, getPageHandler(newCursor, newAfter));
+								const newCursor = current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined;
+								return new Proxy(result, getPageHandler(newCursor));
 							}
 							return null;
 						};
