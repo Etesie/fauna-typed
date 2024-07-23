@@ -1,5 +1,5 @@
 export const removeQuotesFromByIdReference = (str: string): string => {
-	return str.replaceAll(/"([a-zA-Z]+\.byId\('[0-9]+'\))"/g, '$1');
+	return str.replaceAll(/"([a-zA-Z]+\.byId\('\d+'\))"/g, '$1');
 };
 
 export const removeQuotesFromTime = (str: string): string => {
@@ -11,9 +11,9 @@ export const removeQuotesFromDate = (str: string): string => {
 };
 
 export const removeRelevantQuotesFromFaunaString = (str: string): string => {
-	const withoutReferences = removeQuotesFromByIdReference(str);
-	const withoutTime = removeQuotesFromTime(withoutReferences);
-	const withoutDate = removeQuotesFromDate(withoutTime);
+	const withoutReferencesQuotes = removeQuotesFromByIdReference(str);
+	const withoutTimeQuotes = removeQuotesFromTime(withoutReferencesQuotes);
+	const withoutDateQuotes = removeQuotesFromDate(withoutTimeQuotes);
 
-	return withoutDate;
+	return withoutDateQuotes;
 };
