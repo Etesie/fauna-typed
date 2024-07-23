@@ -86,9 +86,9 @@ type NamedFunctions<
 } & NamedDocument<T>;
 
 class Page<T extends QueryValueObject> {
-	data: T[];
-	localCursor?: number;
-	after?: Promise<string | void | undefined>;
+	public data: T[];
+	protected localCursor?: number;
+	protected after?: Promise<string | void | undefined>;
 
 	constructor(data: T[], localCursor?: number, after?: Promise<string | void | undefined>) {
 		this.data = data;
