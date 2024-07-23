@@ -109,24 +109,22 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					return () => {
 						const pageSize = 16;
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current.slice(0, pageSize),
-							current.length > pageSize ? 1 : undefined
+							current.slice(0, pageSize)
 						);
-						result.updateAfter(
-							fetchAllFromDB(result).then(
-								(res) => res,
-								(e) => console.log(e)
-							)
+						const cursor = current.length > pageSize ? 1 : undefined;
+						const after = fetchAllFromDB(result).then(
+							(res) => res,
+							(e) => console.error(e)
 						);
 						// fetchAllFromDB(result);
-						return new Proxy(result, pageHandler);
+						return new Proxy(result, getPageHandler(cursor, after));
 					};
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
 						const result = new Page(getObjects(filter), undefined);
 						// fetchWhereFromDB(result);
-						return new Proxy(result, pageHandler);
+						return new Proxy(result, getPageHandler());
 					};
 
 				case 'create':
@@ -186,50 +184,48 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const pageHandler = {
-		get(
-			target: Page<Document<MainType>>,
-			prop: keyof Page<Document<MainType>>,
-			receiver: any
-		): any {
-			switch (prop) {
-				case 'data':
-					return target.data;
-				case 'after':
-					return async () => {
-						const after = await target?.after;
-						const cursor = target?.localCursor;
+	const getPageHandler = (cursor?: number, after?: Promise<string | void | undefined>) => {
+		return {
+			get(
+				target: Page<Document<MainType>>,
+				prop: keyof Page<Document<MainType>>,
+				receiver: any
+			): any {
+				switch (prop) {
+					case 'data':
+						return target.data;
+					case 'after':
+						return async () => {
+							const afterValue = await after;
 
-						if (cursor && after) {
-							const pageSize = 16;
-							const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-								current.slice(pageSize * cursor, pageSize * (cursor + 1)),
-								current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined
-							);
-							result.updateAfter(
-								fetchPaginatedFromDB(result, after).then(
+							if (cursor && afterValue) {
+								const pageSize = 16;
+								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
+									current.slice(pageSize * cursor, pageSize * (cursor + 1))
+								);
+								const newCursor = current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined;
+								const newAfter = fetchPaginatedFromDB(result, afterValue).then(
 									(res) => res,
-									(e) => console.log(e)
-								)
-							);
-							return new Proxy(result, pageHandler);
-						}
-						return null;
-					};
-				case 'order':
-					return (...orderings: Ordering<Document<MainType>>[]) => {
-						target.order(...orderings); // Use the Page class's order method
-						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
-					};
-				default:
-					return Reflect.get(target, prop, receiver);
+									(e) => console.error(e)
+								);
+								return new Proxy(result, getPageHandler(newCursor, newAfter));
+							}
+							return null;
+						};
+					case 'order':
+						return (...orderings: Ordering<Document<MainType>>[]) => {
+							target.order(...orderings); // Use the Page class's order method
+							return new Proxy(target, getPageHandler()); // Return a proxy to allow chaining
+						};
+					default:
+						return Reflect.get(target, prop, receiver);
+				}
 			}
-		}
+		};
 	};
 
 	const documentHandler = {
 		get(target: any, prop: any, receiver: any): any {
-			// console.log('document handler accessed');
 			switch (prop) {
 				/**
 				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.

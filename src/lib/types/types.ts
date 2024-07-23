@@ -1,6 +1,5 @@
 import type { Ordering } from '$lib/stores/_shared/order';
-import type { CollectionStore } from '$lib/stores/collection.svelte';
-import type { CreateDocumentStore, DocumentStore } from '$lib/stores/document.svelte';
+import type { CreateDocumentStore } from '$lib/stores/document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
 type Document<T extends QueryValueObject> = {
@@ -86,23 +85,15 @@ type NamedFunctions<
 } & NamedDocument<T>;
 
 class Page<T extends QueryValueObject> {
-	public data: T[];
-	protected localCursor?: number;
-	protected after?: Promise<string | void | undefined>;
+	data: T[];
+	after?: string;
 
-	constructor(data: T[], localCursor?: number, after?: Promise<string | void | undefined>) {
+	constructor(data: T[], after?: string) {
 		this.data = data;
 		if (after) {
 			this.after = after;
 		}
-		if (localCursor) {
-			this.localCursor = localCursor;
-		}
 	}
-
-	updateAfter = (after: Promise<string | void | undefined>) => {
-		this.after = after;
-	};
 
 	/**
 	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
