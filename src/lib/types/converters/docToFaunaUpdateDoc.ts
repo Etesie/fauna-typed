@@ -4,7 +4,7 @@ import {
 	transformDocValueToFaunaValue,
 	transformToFaunaTime
 } from './transformDocValueToFaunaValue';
-import { removeRelevantQuotesFromFaunaString } from './utils';
+import { removeInvalidQuotesFromFaunaString } from './utils';
 
 export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 	fields: Document_Update<T_Update>,
@@ -24,5 +24,5 @@ export const docToFaunaUpdateDoc = <T_Update extends QueryValueObject>(
 		}
 	});
 
-	return removeRelevantQuotesFromFaunaString(JSON.stringify(faunaDocData));
+	return removeInvalidQuotesFromFaunaString(JSON.stringify(faunaDocData));
 };
