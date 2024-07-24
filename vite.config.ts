@@ -8,7 +8,7 @@ export default defineConfig({
 	},
 	server: {
 		watch: {
-			ignored: ['**/src/fauna-typed/types.ts']
+			ignored: ['**/src/fauna-typed/*']
 		}
 	}
 });

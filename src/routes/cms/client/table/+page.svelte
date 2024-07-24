@@ -11,7 +11,7 @@
 
 	let collectionName: String = $derived($page.url.searchParams.get('coll'));
 
-	const docFields = $derived(Object.entries(s[collectionName].definition.fields));
+	const docFields = $derived(Object.entries(s[collectionName]?.definition?.fields || {}));
 	const allFields = $derived([...Object.entries(baseFields), ...docFields]);
 
 	const allKeys = $derived(allFields.map((field) => field[0] as keyof Document<QueryValueObject>));
@@ -35,18 +35,14 @@
 	let sorter: Sorter[] = $state([]);
 
 	const getWherePredicate = <T,>(
-		allKeys: (keyof T)[],
 		filter: Partial<Record<keyof T, string>>
 	): ((item: T) => boolean) => {
-		return (item: T) => {
-			return allKeys.every((key) => {
-				const filterValue = filter[key];
-				if (typeof filterValue === 'string' && filterValue) {
-					return item[key] && typeof item[key] === 'string' && item[key].includes(filterValue);
-				}
-				return true; // If the filter is empty or not a string, ignore this filter
-			});
-		};
+		const queryCondition = Object.entries(filter)
+			.filter(([filterKey, filterVal]) => typeof filterVal === 'string' && filterVal)
+			.map(([key, value]) => `item.${key}?.includes("${value}")`)
+			.join(' && ');
+
+		return new Function('item', `return (item) => ${queryCondition || true} `)();
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
@@ -59,13 +55,13 @@
 	};
 
 	let docsPageFiltered = $derived(
-		s[collectionName].where(getWherePredicate(allKeys, filter)).order(...getSorters(sorter))
+		s[collectionName]?.where(getWherePredicate(filter))?.order(...getSorters(sorter))
 	);
 
 	let newDoc = $state<Document_Create<any>>({});
 
 	async function createDoc() {
-		console.log('New doc: ', newDoc);
+		console.log('New doc: ', newDoc, '| /table/+page.svelte L68');
 		s[collectionName].create(newDoc);
 		newDoc = {};
 
@@ -107,7 +103,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each docsPageFiltered.data as doc, index}
+						{#each docsPageFiltered?.data || [] as doc, index}
 							<tr>
 								<td class="w-5">{index + 1}</td>
 								{#each allKeys as key}

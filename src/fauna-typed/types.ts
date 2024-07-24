@@ -1,82 +1,219 @@
 import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 
-type User = {
-	firstName: string;
-	lastName: string;
-	birthdate: DateStub;
-	account?: Array<Account>;
-	age: number;
+type Event = {
+	name: string;
+	masterQuestion: MasterQuestion;
+	consequences: Array<Consequence>;
+	masterChapter: MasterChapter;
+	type: "MULTIPLE" | "SINGLE" | null;
+	multipleReference: MasterQuestion | null;
+	unlockCriteria: string | null;
 };
 
-type User_Create = {
-	firstName: string;
-	lastName: string;
-	birthdate: DateStub;
-	account?: Array<Account | DocumentReference>;
+type Event_Create = {
+	name: string;
+	masterQuestion: MasterQuestion | DocumentReference;
+	consequences: Array<Consequence | DocumentReference>;
+	masterChapter: MasterChapter | DocumentReference;
+	type: "MULTIPLE" | "SINGLE" | null;
+	multipleReference: MasterQuestion | DocumentReference | null;
+	unlockCriteria: string | null;
 };
-type User_Replace = User_Create;
-type User_Update = Partial<User_Create>;
+type Event_Replace = Event_Create;
+type Event_Update = Partial<Event_Create>;
 
-type User_FaunaCreate = {
-	firstName: string;
-	lastName: string;
-	birthdate: DateStub;
-	account?: Array<DocumentReference>;
+type Event_FaunaCreate = {
+	name: string;
+	masterQuestion: DocumentReference;
+	consequences: Array<DocumentReference>;
+	masterChapter: DocumentReference;
+	type: "MULTIPLE" | "SINGLE" | null;
+	multipleReference: DocumentReference | null;
+	unlockCriteria: string | null;
 };
-type User_FaunaReplace = User_FaunaCreate;
-type User_FaunaUpdate = Partial<User_FaunaCreate>;
+type Event_FaunaReplace = Event_FaunaCreate;
+type Event_FaunaUpdate = Partial<Event_FaunaCreate>;
 
-type Account = {
-	user: User;
-	provider: string;
-	providerUserId: string;
+type Consequence = {
+	name: string;
+	event: Event;
+	masterAnswer: MasterAnswer;
+	nextEvent: Array<Event>;
+	masterChapter: MasterChapter;
 };
 
-type Account_Create = {
-	user: User | DocumentReference;
-	provider: string;
-	providerUserId: string;
+type Consequence_Create = {
+	name: string;
+	event: Event | DocumentReference;
+	masterAnswer: MasterAnswer | DocumentReference;
+	nextEvent: Array<Event | DocumentReference>;
+	masterChapter: MasterChapter | DocumentReference;
 };
-type Account_Replace = Account_Create;
-type Account_Update = Partial<Account_Create>;
+type Consequence_Replace = Consequence_Create;
+type Consequence_Update = Partial<Consequence_Create>;
 
-type Account_FaunaCreate = {
-	user: DocumentReference;
-	provider: string;
-	providerUserId: string;
+type Consequence_FaunaCreate = {
+	name: string;
+	event: DocumentReference;
+	masterAnswer: DocumentReference;
+	nextEvent: Array<DocumentReference>;
+	masterChapter: DocumentReference;
 };
-type Account_FaunaReplace = Account_FaunaCreate;
-type Account_FaunaUpdate = Partial<Account_FaunaCreate>;
+type Consequence_FaunaReplace = Consequence_FaunaCreate;
+type Consequence_FaunaUpdate = Partial<Consequence_FaunaCreate>;
+
+type MasterChapter = {
+	name: string;
+	parent: MasterChapter | null;
+	children: Array<MasterChapter>;
+	before: MasterChapter | null;
+	after: MasterChapter | null;
+	position: string;
+};
+
+type MasterChapter_Create = {
+	name: string;
+	parent: MasterChapter | DocumentReference | null;
+	children: Array<MasterChapter | DocumentReference>;
+	before: MasterChapter | DocumentReference | null;
+	after: MasterChapter | DocumentReference | null;
+	position: string;
+};
+type MasterChapter_Replace = MasterChapter_Create;
+type MasterChapter_Update = Partial<MasterChapter_Create>;
+
+type MasterChapter_FaunaCreate = {
+	name: string;
+	parent: DocumentReference | null;
+	children: Array<DocumentReference>;
+	before: DocumentReference | null;
+	after: DocumentReference | null;
+	position: string;
+};
+type MasterChapter_FaunaReplace = MasterChapter_FaunaCreate;
+type MasterChapter_FaunaUpdate = Partial<MasterChapter_FaunaCreate>;
+
+type MasterQuestion = {
+	name: string;
+	explanation: string | null;
+	answers: Array<MasterAnswer>;
+	type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "TEXT" | "FORMATTED_TEXT" | "WHOLE_NUMBER" | "DECIMAL_NUMBER" | "CURRENCY" | "ATTACHMENT" | "FORMULA";
+};
+
+type MasterQuestion_Create = {
+	name: string;
+	explanation: string | null;
+	answers: Array<MasterAnswer | DocumentReference>;
+	type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "TEXT" | "FORMATTED_TEXT" | "WHOLE_NUMBER" | "DECIMAL_NUMBER" | "CURRENCY" | "ATTACHMENT" | "FORMULA";
+};
+type MasterQuestion_Replace = MasterQuestion_Create;
+type MasterQuestion_Update = Partial<MasterQuestion_Create>;
+
+type MasterQuestion_FaunaCreate = {
+	name: string;
+	explanation: string | null;
+	answers: Array<DocumentReference>;
+	type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "TEXT" | "FORMATTED_TEXT" | "WHOLE_NUMBER" | "DECIMAL_NUMBER" | "CURRENCY" | "ATTACHMENT" | "FORMULA";
+};
+type MasterQuestion_FaunaReplace = MasterQuestion_FaunaCreate;
+type MasterQuestion_FaunaUpdate = Partial<MasterQuestion_FaunaCreate>;
+
+type MasterAnswer = {
+	name: string;
+	examples: Array<string>;
+	explanation: string | null;
+	formula: string | null;
+	masterQuestion: MasterQuestion;
+};
+
+type MasterAnswer_Create = {
+	name: string;
+	examples: Array<string>;
+	explanation: string | null;
+	formula: string | null;
+	masterQuestion: MasterQuestion | DocumentReference;
+};
+type MasterAnswer_Replace = MasterAnswer_Create;
+type MasterAnswer_Update = Partial<MasterAnswer_Create>;
+
+type MasterAnswer_FaunaCreate = {
+	name: string;
+	examples: Array<string>;
+	explanation: string | null;
+	formula: string | null;
+	masterQuestion: DocumentReference;
+};
+type MasterAnswer_FaunaReplace = MasterAnswer_FaunaCreate;
+type MasterAnswer_FaunaUpdate = Partial<MasterAnswer_FaunaCreate>;
 
 interface TypeMapping {
-	Account: {
-		main: Account;
-		create: Account_Create;
-		replace: Account_Replace;
-		update: Account_Update;
+	Event: {
+		main: Event;
+		create: Event_Create;
+		replace: Event_Replace;
+		update: Event_Update;
 	};
-	User: {
-		main: User;
-		create: User_Create;
-		replace: User_Replace;
-		update: User_Update;
+	Consequence: {
+		main: Consequence;
+		create: Consequence_Create;
+		replace: Consequence_Replace;
+		update: Consequence_Update;
+	};
+	MasterChapter: {
+		main: MasterChapter;
+		create: MasterChapter_Create;
+		replace: MasterChapter_Replace;
+		update: MasterChapter_Update;
+	};
+	MasterQuestion: {
+		main: MasterQuestion;
+		create: MasterQuestion_Create;
+		replace: MasterQuestion_Replace;
+		update: MasterQuestion_Update;
+	};
+	MasterAnswer: {
+		main: MasterAnswer;
+		create: MasterAnswer_Create;
+		replace: MasterAnswer_Replace;
+		update: MasterAnswer_Update;
 	};
 }
 
 export type {
-	User,
-	User_Create,
-	User_Update,
-	User_Replace,
-	User_FaunaCreate,
-	User_FaunaUpdate,
-	User_FaunaReplace,
-	Account,
-	Account_Create,
-	Account_Update,
-	Account_Replace,
-	Account_FaunaCreate,
-	Account_FaunaUpdate,
-	Account_FaunaReplace,
+	Event,
+	Event_Create,
+	Event_Update,
+	Event_Replace,
+	Event_FaunaCreate,
+	Event_FaunaUpdate,
+	Event_FaunaReplace,
+	Consequence,
+	Consequence_Create,
+	Consequence_Update,
+	Consequence_Replace,
+	Consequence_FaunaCreate,
+	Consequence_FaunaUpdate,
+	Consequence_FaunaReplace,
+	MasterChapter,
+	MasterChapter_Create,
+	MasterChapter_Update,
+	MasterChapter_Replace,
+	MasterChapter_FaunaCreate,
+	MasterChapter_FaunaUpdate,
+	MasterChapter_FaunaReplace,
+	MasterQuestion,
+	MasterQuestion_Create,
+	MasterQuestion_Update,
+	MasterQuestion_Replace,
+	MasterQuestion_FaunaCreate,
+	MasterQuestion_FaunaUpdate,
+	MasterQuestion_FaunaReplace,
+	MasterAnswer,
+	MasterAnswer_Create,
+	MasterAnswer_Update,
+	MasterAnswer_Replace,
+	MasterAnswer_FaunaCreate,
+	MasterAnswer_FaunaUpdate,
+	MasterAnswer_FaunaReplace,
 	TypeMapping
 };

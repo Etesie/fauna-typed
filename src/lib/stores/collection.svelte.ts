@@ -11,9 +11,10 @@ import {
 	type NamedFunctions,
 	type Predicate
 } from '$lib/types/types';
-import { Module, TimeStub } from 'fauna';
+import { Client, Module, TimeStub } from 'fauna';
 import { storage } from './_shared/local-storage';
 import type { Ordering } from './_shared/order';
+import { createDatabaseApi } from '$lib/database/fauna';
 
 const COLL_NAME = 'Collection';
 
@@ -32,33 +33,92 @@ type CreateCollectionStore = {
 	destroy: () => void;
 };
 
-const documentHandler = {
-	get(target: any, prop: any, receiver: any): any {
-		// console.log('document handler accessed');
-		switch (prop) {
-			/**
-			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
-			 */
-			case 'update':
-				return (doc: NamedDocument_Update<Collection_Update>): void => {
-					console.log('update target', target.name);
-					return updateObject(target.name, doc);
+const createDocumentHandler = (name: string) => {
+	return {
+		get(target: any, prop: any, receiver: any): any {
+			const latestData = $state(getObjects((doc) => doc.name === name).at(0) || {});
+			// Special handling for accessing the whole object
+			if (prop === Symbol.toPrimitive) {
+				return (hint) => {
+					if (hint === 'string') {
+						return JSON.stringify(latestData);
+					}
+					return Object.keys(latestData).length > 0 ? latestData : undefined;
 				};
-			case 'replace':
-				return (doc: NamedDocument_Replace<Collection_Replace>): void => {
-					console.log('replace target', target.name);
-					return replaceObject(target.name, doc);
+			}
+
+			// For regular property access
+			if (prop in latestData) {
+				return latestData[prop];
+			}
+
+			switch (prop) {
+				/**
+				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
+				 */
+				case 'update':
+					return (doc: NamedDocument_Update<Collection_Update>): void => {
+						console.log('update target', target.name);
+						return updateObject(target.name, doc);
+					};
+				case 'replace':
+					return (doc: NamedDocument_Replace<Collection_Replace>): void => {
+						console.log('replace target', target.name);
+						return replaceObject(target.name, doc);
+					};
+				case 'delete':
+					return () => {
+						console.log('delete target', target.name);
+						deleteObject(target.name);
+					};
+				default:
+					return Reflect.get(target, prop, receiver);
+			}
+		},
+		ownKeys(target) {
+			return Reflect.ownKeys(getObjects((doc) => doc.name === name).at(0) || {});
+		},
+		getOwnPropertyDescriptor(target, prop) {
+			const latestData = getObjects((doc) => doc.name === name).at(0) || {};
+			if (prop in latestData) {
+				return {
+					value: latestData[prop],
+					writable: true,
+					enumerable: true,
+					configurable: true
 				};
-			case 'delete':
-				return () => {
-					console.log('delete target', target.name);
-					deleteObject(target.name);
-				};
-			default:
-				return Reflect.get(target, prop, receiver);
+			}
+			return undefined;
 		}
-	}
+	};
 };
+// const documentHandler = {
+// 	get(target: any, prop: any, receiver: any): any {
+
+// 		switch (prop) {
+// 			/**
+// 			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
+// 			 */
+// 			case 'update':
+// 				return (doc: NamedDocument_Update<Collection_Update>): void => {
+// 					console.log('update target', target.name);
+// 					return updateObject(target.name, doc);
+// 				};
+// 			case 'replace':
+// 				return (doc: NamedDocument_Replace<Collection_Replace>): void => {
+// 					console.log('replace target', target.name);
+// 					return replaceObject(target.name, doc);
+// 				};
+// 			case 'delete':
+// 				return () => {
+// 					console.log('delete target', target.name);
+// 					deleteObject(target.name);
+// 				};
+// 			default:
+// 				return Reflect.get(target, prop, receiver);
+// 		}
+// 	}
+// };
 
 let collection = $state<NamedFunctions<Collection, Collection_Replace, Collection_Update>[]>([]);
 
@@ -104,92 +164,105 @@ const deleteObject = (name: string) => {
 };
 
 const upsertObjectFromClient = (
-	newDoc: NamedDocument_Create<Collection_Create>
+	clientDoc: NamedDocument_Create<Collection_Create>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
-	const index = collection.findIndex((doc) => $state.is(doc.name, newDoc.name));
-	const proxiedDoc = new Proxy(
+	const index = collection.findIndex((doc) => $state.is(doc.name, clientDoc.name));
+	const newDoc = new Proxy(
 		{
-			...newDoc,
+			...clientDoc,
 			ts: TimeStub.fromDate(new Date()),
 			coll: new Module(COLL_NAME)
 		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
-		documentHandler
+		createDocumentHandler
 	);
 
 	if (index > -1) {
-		collection[index] = proxiedDoc;
+		collection[index] = newDoc;
 	} else {
-		collection.push(proxiedDoc);
+		collection.push(newDoc);
 	}
 	toLocalStorage();
 
-	const updatedDoc = collection.find((doc) => $state.is(doc.name, proxiedDoc.name));
-	if (!updatedDoc) {
-		throw new Error('Document not found after upsert');
-	}
-	return updatedDoc;
+	return newDoc;
 };
 
 // TODO: REMOVE AFTER TESTING
-upsertObjectFromClient({
-	name: 'User',
-	fields: {
-		firstName: {
-			signature: 'String'
-		},
-		lastName: {
-			signature: 'String'
-		},
-		birthdate: {
-			signature: 'Date'
-		},
-		account: {
-			signature: 'Array<Ref<Account>>?'
-		}
-	},
-	computed_fields: {
-		age: {
-			body: '(doc) => (Date.today().difference(doc.birthdate) / 365)',
-			signature: 'Number'
-		}
-	}
-});
+// upsertObjectFromClient({
+// 	name: 'User',
+// 	fields: {
+// 		firstName: {
+// 			signature: 'String'
+// 		},
+// 		lastName: {
+// 			signature: 'String'
+// 		},
+// 		birthdate: {
+// 			signature: 'Date'
+// 		},
+// 		account: {
+// 			signature: 'Array<Ref<Account>>?'
+// 		}
+// 	},
+// 	computed_fields: {
+// 		age: {
+// 			body: '(doc) => (Date.today().difference(doc.birthdate) / 365)',
+// 			signature: 'Number'
+// 		}
+// 	}
+// });
 
-upsertObjectFromClient({
-	name: 'Account',
-	fields: {
-		user: {
-			signature: 'Ref<User>'
-		},
-		provider: {
-			signature: 'String'
-		},
-		providerUserId: {
-			signature: 'String'
-		}
-	}
-});
+// upsertObjectFromClient({
+// 	name: 'Account',
+// 	fields: {
+// 		user: {
+// 			signature: 'Ref<User>'
+// 		},
+// 		provider: {
+// 			signature: 'String'
+// 		},
+// 		providerUserId: {
+// 			signature: 'String'
+// 		}
+// 	}
+// });
 
 const upsertObjectFromStorage = (
 	storageDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
+	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const proxiedDoc = new Proxy(storageDoc, documentHandler);
+	const newDoc = new Proxy(storageDoc, createDocumentHandler);
 	if (index > -1) {
-		collection[index] = proxiedDoc;
+		collection[index] = newDoc;
 	} else {
-		collection.push(proxiedDoc);
+		collection.push(newDoc);
 	}
-	const updatedDoc = collection.find((u) => $state.is(u.name, storageDoc.name));
-	if (!updatedDoc) {
-		throw new Error('Document not found after upsert');
+
+	return newDoc;
+};
+
+const upsertObjectFromFauna = (
+	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
+): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
+	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
+	const newDoc = new Proxy(faunaDoc, createDocumentHandler);
+	if (index > -1) {
+		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
+		collection[index] = newDoc;
+	} else {
+		collection.push(newDoc);
 	}
-	return updatedDoc;
+
+	toLocalStorage();
+
+	return newDoc;
 };
 
 const fromLocalStorage = () => {
+	console.log('\nfromLocalStorage - collection.svelte.ts L203\n');
 	const parsedDocuments =
 		storage.get<NamedFunctions<Collection, Collection_Replace, Collection_Update>>(COLL_NAME);
+	console.log(parsedDocuments);
 	if (parsedDocuments) {
 		parsedDocuments.forEach((parsedDocument) => {
 			upsertObjectFromStorage(parsedDocument);
@@ -197,13 +270,17 @@ const fromLocalStorage = () => {
 	}
 };
 
-export const createCollectionStore = (): CreateCollectionStore => {
+export const createCollectionStore = (client: Client): CreateCollectionStore => {
+	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna);
+
 	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'byName':
 					return (name: string) => {
-						return getObjects((doc) => doc.name === name).at(0);
+						console.log('Collection.byName:', name, '| collection.svelte.ts L282');
+						return new Proxy({}, createDocumentHandler(name));
+						// return getObjects((doc) => doc.name === name).at(0);
 					};
 
 				case 'first':
@@ -221,7 +298,7 @@ export const createCollectionStore = (): CreateCollectionStore => {
 						const result = new Page<
 							NamedFunctions<Collection, Collection_Replace, Collection_Update>
 						>(collection, undefined);
-						// fetchAllFromDB(result);
+						db.all();
 						return new Proxy(result, pageHandler);
 					};
 
@@ -262,5 +339,6 @@ export const createCollectionStore = (): CreateCollectionStore => {
 		}
 	};
 
+	fromLocalStorage();
 	return new Proxy(collection, storeHandler);
 };
