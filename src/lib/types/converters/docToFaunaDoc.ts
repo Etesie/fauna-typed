@@ -1,6 +1,10 @@
 import type { QueryValueObject } from 'fauna';
 import { type Collection, type Document_Create } from '../types';
-import { transformDocValueToFaunaValue } from './transformDocValueToFaunaValue';
+import {
+	transformDocValueToFaunaValue,
+	transformToFaunaTime
+} from './transformDocValueToFaunaValue';
+import { removeInvalidQuotesFromFaunaString } from './utils';
 
 export const TEMP_ID_PREFIX = 'TEMP_';
 
@@ -9,7 +13,7 @@ export const docToFaunaDoc = <T extends QueryValueObject>(
 	collection: Collection
 ) => {
 	const faunaDocData: QueryValueObject = {
-		ttl: doc.ttl || null
+		ttl: doc.ttl ? transformToFaunaTime(doc.ttl) : null
 	};
 
 	if (doc.id && !doc.id?.startsWith(TEMP_ID_PREFIX)) {
@@ -24,5 +28,5 @@ export const docToFaunaDoc = <T extends QueryValueObject>(
 		}
 	});
 
-	return faunaDocData;
+	return removeInvalidQuotesFromFaunaString(JSON.stringify(faunaDocData));
 };
