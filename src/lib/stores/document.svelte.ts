@@ -108,9 +108,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const upsertObjectFromFauna = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
+		doc: Functions<MainType, ReplaceType, UpdateType>,
+		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
 		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
@@ -199,8 +200,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'create':
 					return (document: Document_Create<CreateType>) => {
-						db.create(document, definition);
-						return upsertObjectFromClient(document);
+						const optimisticResult = upsertObjectFromClient(document);
+						db.create({ ...document, id: optimisticResult.id }, definition);
+
+						return optimisticResult;
 					};
 
 				case 'definition':

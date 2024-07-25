@@ -36,7 +36,7 @@ export const createDatabaseApi = <
 >(
 	client: Client,
 	COLL_NAME: string,
-	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>) => void
+	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>, tempDocId?: string) => void
 ): CreateDatabaseApi<T, K> => {
 	async function all() {
 		try {
@@ -128,7 +128,7 @@ export const createDatabaseApi = <
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				upsertObjectFromFauna(response.data);
+				upsertObjectFromFauna(response.data, document.id);
 			}
 		} catch (error) {
 			console.error('Error fetching document from database using create:', error);
