@@ -1,4 +1,4 @@
-import { Module, type QuerySuccess, TimeStub, type QueryValueObject, Client } from 'fauna';
+import { type QueryValueObject, Client } from 'fauna';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
@@ -311,6 +311,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			const converted = docUpdateToDoc(doc, fields, definition, s);
 			Object.assign(doc, converted);
 			toLocalStorage();
+
+			return doc;
 		}
 	};
 
