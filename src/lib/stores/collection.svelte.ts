@@ -15,6 +15,7 @@ import { Client, Module, TimeStub } from 'fauna';
 import { storage } from './_shared/local-storage';
 import type { Ordering } from './_shared/order';
 import { createDatabaseApi } from '$lib/database/fauna';
+import isEqual from 'lodash.isequal';
 
 const COLL_NAME = 'Collection';
 
@@ -177,7 +178,9 @@ const upsertObjectFromClient = (
 	);
 
 	if (index > -1) {
-		collection[index] = newDoc;
+		if (!isEqual(collection[index], newDoc)) {
+			collection[index] = newDoc;
+		}
 	} else {
 		collection.push(newDoc);
 	}
@@ -233,7 +236,9 @@ const upsertObjectFromStorage = (
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
 	const newDoc = new Proxy(storageDoc, createDocumentHandler);
 	if (index > -1) {
-		collection[index] = newDoc;
+		if (!isEqual(collection[index], newDoc)) {
+			collection[index] = newDoc;
+		}
 	} else {
 		collection.push(newDoc);
 	}
@@ -248,7 +253,9 @@ const upsertObjectFromFauna = (
 	const newDoc = new Proxy(faunaDoc, createDocumentHandler);
 	if (index > -1) {
 		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
-		collection[index] = newDoc;
+		if (!isEqual(collection[index], newDoc)) {
+			collection[index] = newDoc;
+		}
 	} else {
 		collection.push(newDoc);
 	}
