@@ -292,6 +292,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					return (doc: Document_Update<UpdateType>): void => {
 						console.log('update target', target.id);
 						updateObject(target.id, doc);
+						db.update(target.id, doc, definition);
 					};
 				case 'replace':
 					return (doc: Document_Replace<ReplaceType>): void => {

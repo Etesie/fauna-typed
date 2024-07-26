@@ -1,12 +1,13 @@
 import type { TypeMapping } from '$fauna-typed/types';
-import { docToFaunaDoc } from '$lib/types/converters';
+import { docToFaunaDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
 	Page,
 	Predicate,
 	Document,
 	Document_Create,
-	Collection
+	Collection,
+	Document_Update
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
@@ -18,6 +19,11 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 	last: () => Promise<void>;
 	create: (
 		document: Document_Create<TypeMapping[K]['create']>,
+		collection: Collection
+	) => Promise<void>;
+	update: (
+		id: string,
+		fields: Document_Update<TypeMapping[K]['update']>,
 		collection: Collection
 	) => Promise<void>;
 };
@@ -135,12 +141,32 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function update(
+		id: string,
+		fields: Document_Update<TypeMapping[K]['update']>,
+		collection: Collection
+	) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")!.update(${docToFaunaUpdateDoc(fields, collection)})`;
+
+			console.log('update:', query);
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error in updating in database using update:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
 		first,
 		firstWhere,
 		last,
-		create
+		create,
+		update
 	};
 };
