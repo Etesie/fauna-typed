@@ -1,5 +1,5 @@
 import type { TypeMapping } from '$fauna-typed/types';
-import { docToFaunaDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
+import { docToFaunaDoc, docToFaunaReplaceDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
 	Page,
@@ -7,7 +7,8 @@ import type {
 	Document,
 	Document_Create,
 	Collection,
-	Document_Update
+	Document_Update,
+	Document_Replace
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
@@ -24,6 +25,11 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 	update: (
 		id: string,
 		fields: Document_Update<TypeMapping[K]['update']>,
+		collection: Collection
+	) => Promise<void>;
+	replace: (
+		id: string,
+		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
 };
@@ -160,6 +166,25 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function replace(
+		id: string,
+		fields: Document_Replace<TypeMapping[K]['replace']>,
+		collection: Collection
+	) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")!.replace(${docToFaunaReplaceDoc(fields, collection)})`;
+
+			console.log('replace:', query);
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error in updating in database using replace:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
@@ -167,6 +192,7 @@ export const createDatabaseApi = <
 		firstWhere,
 		last,
 		create,
-		update
+		update,
+		replace
 	};
 };
