@@ -169,6 +169,7 @@ export {
 	type Functions,
 	type NamedFunctions,
 	Page,
+	type Field,
 	type Fields,
 	type ComputedFields,
 	baseFields,

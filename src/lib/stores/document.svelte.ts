@@ -18,6 +18,7 @@ import { createCollectionStore } from './collection.svelte';
 import type { TypeMapping } from '$fauna-typed/types';
 import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
+import isEqual from 'lodash.isequal';
 
 let s: DocumentStores = $state({});
 
@@ -75,8 +76,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		);
 
 		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
+			if (!isEqual(current[index], newDoc)) {
+				addToPast();
+				current[index] = newDoc;
+			}
 		} else {
 			addToPast();
 
@@ -93,8 +96,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
+			if (!isEqual(current[index], newDoc)) {
+				addToPast();
+				current[index] = newDoc;
+			}
 		} else {
 			addToPast();
 			current.push(newDoc);
@@ -103,14 +108,17 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const upsertObjectFromFauna = (
-		doc: Functions<MainType, ReplaceType, UpdateType>
+		doc: Functions<MainType, ReplaceType, UpdateType>,
+		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
 		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
-			addToPast();
-			current[index] = newDoc;
+			if (!isEqual(current[index], newDoc)) {
+				addToPast();
+				current[index] = newDoc;
+			}
 		} else {
 			addToPast();
 			current.push(newDoc);
@@ -193,7 +201,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'create':
 					return (document: Document_Create<CreateType>) => {
-						return upsertObjectFromClient(document);
+						const optimisticResult = upsertObjectFromClient(document);
+						db.create({ ...document, id: optimisticResult.id }, definition);
+
+						return optimisticResult;
 					};
 
 				case 'definition':
@@ -326,6 +337,8 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			const converted = docUpdateToDoc(doc, fields, definition, s);
 			Object.assign(doc, converted);
 			toLocalStorage();
+
+			return doc;
 		}
 	};
 
