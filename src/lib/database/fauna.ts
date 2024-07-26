@@ -2,7 +2,8 @@ import type { Functions, Page, Predicate, Document } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject> = {
-	all: () => Promise<void>;
+	all: () => Promise<string | void>;
+	paginate: (after: string) => Promise<string | void>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -35,6 +36,23 @@ export const createDatabaseApi = <
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
+				return response.data.after;
+			}
+		} catch (error) {
+			console.error('Error fetching document from database:', error);
+		}
+	}
+
+	async function paginate(after: string) {
+		try {
+			const query = `Set.paginate(${after})`;
+			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				response.data.data.forEach((newDoc) => {
+					upsertObjectFromFauna(newDoc);
+				});
+				return response.data.after;
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
@@ -105,6 +123,7 @@ export const createDatabaseApi = <
 
 	return {
 		all,
+		paginate,
 		where,
 		first,
 		firstWhere,

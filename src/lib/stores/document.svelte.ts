@@ -1,4 +1,4 @@
-import { Module, type QuerySuccess, TimeStub, type QueryValueObject, Client } from 'fauna';
+import { type QueryValueObject, Client } from 'fauna';
 import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
@@ -171,7 +171,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					return () => {
 						const pageSize = 16;
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							$derived(current.slice(0, pageSize))
+							current.slice(0, pageSize)
 						);
 						result.after = db.all();
 						const cursor = current.length > pageSize ? 1 : undefined;
@@ -266,7 +266,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							if (cursor && afterValue) {
 								const pageSize = 16;
 								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-									$derived(current.slice(pageSize * cursor, pageSize * (cursor + 1)))
+									current.slice(pageSize * cursor, pageSize * (cursor + 1))
 								);
 								result.after = db.paginate(afterValue);
 								const newCursor = current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined;
