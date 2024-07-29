@@ -26,6 +26,7 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 		fields: Document_Update<TypeMapping[K]['update']>,
 		collection: Collection
 	) => Promise<void>;
+	byId: (id: string) => Promise<void>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -160,6 +161,20 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function byId(id: string) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")`;
+
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using byId:', error);
+		}
+	}
+
 	return {
 		all,
 		where,
@@ -167,6 +182,7 @@ export const createDatabaseApi = <
 		firstWhere,
 		last,
 		create,
-		update
+		update,
+		byId
 	};
 };

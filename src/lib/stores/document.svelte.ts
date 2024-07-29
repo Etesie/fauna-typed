@@ -70,9 +70,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
+		const convertedDoc = docCreateToDoc(doc, definition, s);
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition, s),
-			documentHandler
+			convertedDoc,
+			createDocumentHandler(convertedDoc)
 		);
 
 		if (index > -1) {
@@ -93,7 +94,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, createDocumentHandler(doc));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -112,7 +113,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, createDocumentHandler(doc));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -129,7 +130,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
 	const Collection = createCollectionStore(client);
-	console.log('Collection | document.svelte.ts L130', Collection);
 
 	s = documentStores;
 
@@ -160,7 +160,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
-						return getObjects((doc) => doc.id === args[0]).at(0);
+						db.byId(args[0]);
+						const latestData = current.find((doc) => doc.id === args[0]) || {};
+						return new Proxy(latestData, createDocumentHandler(latestData));
 					};
 
 				case 'first':
@@ -209,7 +211,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					console.log('\ndefinition (document.svelte.ts L198):\n', definition);
 					return definition;
 
 				/*************
@@ -281,33 +282,70 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const documentHandler = {
-		get(target: any, prop: any, receiver: any): any {
-			// console.log('document handler accessed');
-			switch (prop) {
-				/**
-				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
-				 */
-				case 'update':
-					return (doc: Document_Update<UpdateType>): void => {
-						console.log('update target', target.id);
-						updateObject(target.id, doc);
-						db.update(target.id, doc, definition);
+	const createDocumentHandler = (doc: Record<string, any> = {}) => {
+		return {
+			get(target: any, prop: any, receiver: any): any {
+				// Special handling for accessing the whole object
+				if (prop === Symbol.toPrimitive) {
+					return (hint) => {
+						if (hint === 'string') {
+							return JSON.stringify(doc);
+						}
+						return Object.keys(doc).length > 0 ? doc : undefined;
 					};
-				case 'replace':
-					return (doc: Document_Replace<ReplaceType>): void => {
-						console.log('replace target', target.id);
-						replaceObject(target.id, doc);
-					};
-				case 'delete':
-					return () => {
-						console.log('delete target', target.id);
-						deleteObject(target.id);
-					};
-				default:
-					return Reflect.get(target, prop, receiver);
+				}
+
+				// For regular property access
+				if (prop in doc) {
+					return doc[prop as keyof typeof doc];
+				}
+
+				switch (prop) {
+					/**
+					 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
+					 */
+					case 'update':
+						return (doc: Document_Update<UpdateType>): void => {
+							updateObject(target.id, doc);
+							db.update(target.id, doc, definition);
+						};
+					case 'replace':
+						return (doc: Document_Replace<ReplaceType>): void => {
+							replaceObject(target.id, doc);
+						};
+					case 'delete':
+						return () => {
+							deleteObject(target.id);
+						};
+					default:
+						return Reflect.get(target, prop, receiver);
+				}
+			},
+			ownKeys(target) {
+				return Reflect.ownKeys(doc);
+			},
+			getOwnPropertyDescriptor(target, prop) {
+				const latestData = doc;
+				// If the property is a symbol, return undefined
+				if (prop instanceof Symbol) {
+					return undefined;
+				}
+
+				// For regular property access
+				if (prop in latestData) {
+					return (
+						Reflect.getOwnPropertyDescriptor(latestData, prop) || {
+							value: latestData[prop as keyof typeof latestData],
+							writable: true,
+							enumerable: true,
+							configurable: true
+						}
+					);
+				}
+
+				return undefined;
 			}
-		}
+		};
 	};
 
 	const getObjects = (
