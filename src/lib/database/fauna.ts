@@ -60,7 +60,7 @@ export const createDatabaseApi = <
 
 	async function paginate(after: string) {
 		try {
-			const query = `Set.paginate(${after})`;
+			const query = `Set.paginate("${after}")`;
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.

@@ -274,13 +274,18 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 						return async () => {
 							const afterValue = await target.after;
 
-							if (cursor && afterValue) {
+							if (afterValue) {
 								const pageSize = 16;
-								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-									current.slice(pageSize * cursor, pageSize * (cursor + 1))
-								);
+								const existingData = cursor
+									? current.slice(pageSize * cursor, pageSize * (cursor + 1))
+									: [];
+								const newCursor = cursor
+									? current.length > pageSize * (cursor + 1)
+										? cursor + 1
+										: undefined
+									: undefined;
+								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(existingData);
 								result.after = db.paginate(afterValue);
-								const newCursor = current.length > pageSize * (cursor + 1) ? cursor + 1 : undefined;
 								return new Proxy(result, getPageHandler(newCursor));
 							}
 							return null;
