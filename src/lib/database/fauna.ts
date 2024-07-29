@@ -53,11 +53,9 @@ export const createDatabaseApi = <
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
-			// console.log('\nfauna.ts - all:\n', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data && response.data.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				// console.log('\nresponse.data.data | fauna.ts L25\n', response.data.data);
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
@@ -71,7 +69,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.where(${transformWherePredicateToFauna(filter)})`;
 
-			console.log('where:', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -88,7 +85,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.all().first()`;
 
-			console.log('first:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -103,7 +99,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.firstWhere(${transformWherePredicateToFauna(filter)})`;
 
-			console.log('firstWhere:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -118,7 +113,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.all().last()`;
 
-			console.log('last:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -136,7 +130,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.create(${docToFaunaDoc(document, collection)})`;
 
-			console.log('create:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -155,7 +148,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.byId("${id}")!.update(${docToFaunaUpdateDoc(fields, collection)})`;
 
-			console.log('update:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -174,7 +166,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.byId("${id}")!.replace(${docToFaunaReplaceDoc(fields, collection)})`;
 
-			console.log('replace:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
