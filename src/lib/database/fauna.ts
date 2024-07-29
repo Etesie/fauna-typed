@@ -11,8 +11,8 @@ import type {
 import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject> = {
-	all: () => Promise<string | void>;
-	paginate: (after: string) => Promise<string | void>;
+	all: () => Promise<string | undefined>;
+	paginate: (after: string) => Promise<string | undefined>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -54,6 +54,7 @@ export const createDatabaseApi = <
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
+			return undefined;
 		}
 	}
 
@@ -70,6 +71,7 @@ export const createDatabaseApi = <
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
+			return undefined;
 		}
 	}
 
