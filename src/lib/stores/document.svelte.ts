@@ -128,7 +128,16 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return newDoc;
 	};
 
-	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
+	const deleteObject = (id: string) => {
+		const index = current.findIndex((u) => $state.is(u.id, id));
+		if (index !== -1) {
+			addToPast();
+			current.splice(index, 1);
+			toLocalStorage();
+		}
+	};
+
+	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
 	const Collection = createCollectionStore(client);
 
 	s = documentStores;
@@ -373,15 +382,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			addToPast();
 			const converted = docReplaceToDoc(doc, fields, definition, s);
 			Object.assign(doc, converted);
-			toLocalStorage();
-		}
-	};
-
-	const deleteObject = (id: string) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
-			addToPast();
-			current.splice(index, 1);
 			toLocalStorage();
 		}
 	};
