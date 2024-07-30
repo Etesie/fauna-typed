@@ -170,7 +170,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'byId':
 					return (...args: string[]) => {
 						db.byId(args[0]);
-						const latestData = current.find((doc) => doc.id === args[0]) || {};
+						const latestData = current.find((doc) => doc.id === args[0]) || {
+							id: args[0]
+						};
 						return new Proxy(latestData, createDocumentHandler(latestData));
 					};
 
