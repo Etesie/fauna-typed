@@ -21,6 +21,7 @@ import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
 let s: DocumentStores = $state({});
+const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -177,20 +178,29 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'all':
 					return () => {
-						const pageSize = 16;
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current.slice(0, pageSize)
+							current.slice(0, DEFAULT_PAGE_SIZE),
+							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
 						);
-						result.after = db.all();
-						const cursor = current.length > pageSize ? 1 : undefined;
-						return new Proxy(result, getPageHandler(cursor));
+
+						const resultState = $state({ ...result }) as Page<
+							Functions<MainType, ReplaceType, UpdateType>
+						>;
+
+						db.all().then((afterCursor: string) => {
+							if (afterCursor !== resultState.afterCursor) {
+								resultState.afterCursor = afterCursor;
+							}
+						});
+
+						return new Proxy(resultState, pageHandler);
 					};
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
 						const result = new Page(getObjects(filter), undefined);
 						db.where(filter);
-						return new Proxy(result, getPageHandler());
+						return new Proxy(result, pageHandler);
 					};
 
 				case 'firstWhere':
@@ -260,46 +270,52 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const getPageHandler = (cursor?: number) => {
-		return {
-			get(
-				target: Page<Document<MainType>>,
-				prop: keyof Page<Document<MainType>>,
-				receiver: any
-			): any {
-				switch (prop) {
-					case 'data':
-						return target.data;
-					case 'after':
-						return async () => {
-							const afterValue = await target.after;
+	const pageHandler = {
+		get(
+			target: Page<Document<MainType>>,
+			prop: keyof Page<Document<MainType>>,
+			receiver: any
+		): any {
+			switch (prop) {
+				case 'data':
+					return target.data;
+				case 'after': {
+					const afterValue = target.afterCursor;
+					if (afterValue) {
+						db.paginate(afterValue).then((paginatedRes: Page<Document<MainType>>) => {
+							if (!target.after) {
+								// Initialize the after property
+								const after = new Page<Document<MainType>>([], {} as Page<Document<MainType>>);
 
-							if (afterValue) {
-								const pageSize = 16;
-								const existingData = cursor
-									? current.slice(pageSize * cursor, pageSize * (cursor + 1))
-									: [];
-								const newCursor = cursor
-									? current.length > pageSize * (cursor + 1)
-										? cursor + 1
-										: undefined
-									: undefined;
-								const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(existingData);
-								result.after = db.paginate(afterValue);
-								return new Proxy(result, getPageHandler(newCursor));
+								// Set the after property in target
+								target.after = {
+									...after
+								};
 							}
-							return null;
-						};
-					case 'order':
-						return (...orderings: Ordering<Document<MainType>>[]) => {
-							target.order(...orderings); // Use the Page class's order method
-							return new Proxy(target, getPageHandler()); // Return a proxy to allow chaining
-						};
-					default:
-						return Reflect.get(target, prop, receiver);
+							if (
+								target.after &&
+								(target?.after?.afterCursor !== paginatedRes?.after ||
+									!isEqual(target.after?.data, paginatedRes.data))
+							) {
+								target.after.afterCursor = paginatedRes?.after;
+								target.after.data = paginatedRes.data?.map((d) => new Proxy(d, documentHandler));
+							}
+						});
+
+						return new Proxy(target.after || {}, pageHandler);
+					}
+
+					return null;
 				}
+				case 'order':
+					return (...orderings: Ordering<Document<MainType>>[]) => {
+						target.order(...orderings); // Use the Page class's order method
+						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
+					};
+				default:
+					return Reflect.get(target, prop, receiver);
 			}
-		};
+		}
 	};
 
 	const documentHandler = {

@@ -12,7 +12,7 @@ import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject> = {
 	all: () => Promise<string | undefined>;
-	paginate: (after: string) => Promise<string | undefined>;
+	paginate: (after: string) => Promise<Page<Document<T>>>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -62,12 +62,9 @@ export const createDatabaseApi = <
 		try {
 			const query = `Set.paginate("${after}")`;
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+
 			if (response.data) {
-				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				response.data.data.forEach((newDoc) => {
-					upsertObjectFromFauna(newDoc);
-				});
-				return response.data.after;
+				return response.data;
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
