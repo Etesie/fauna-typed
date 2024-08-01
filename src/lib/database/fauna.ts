@@ -32,6 +32,7 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
+	byId: (id: string) => Promise<void>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -48,7 +49,8 @@ export const createDatabaseApi = <
 >(
 	client: Client,
 	COLL_NAME: string,
-	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>, tempDocId?: string) => void
+	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>, tempDocId?: string) => void,
+	deleteObject: (id: string) => void
 ): CreateDatabaseApi<T, K> => {
 	async function all() {
 		try {
@@ -158,6 +160,26 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function byId(id: string) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")`;
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+
+			if (response.data) {
+				// Find the data in the store and delete it, If it doesn't exist in Fauna
+				if (response.data?.cause === 'not found') {
+					deleteObject(id);
+					return;
+				}
+
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using byId:', error);
+		}
+	}
+
 	async function replace(
 		id: string,
 		fields: Document_Replace<TypeMapping[K]['replace']>,
@@ -184,6 +206,7 @@ export const createDatabaseApi = <
 		last,
 		create,
 		update,
-		replace
+		replace,
+		byId
 	};
 };

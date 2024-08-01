@@ -70,9 +70,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
+		const convertedDoc = docCreateToDoc(doc, definition, s);
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition, s),
-			documentHandler
+			convertedDoc,
+			createDocumentHandler(convertedDoc.id)
 		);
 
 		if (index > -1) {
@@ -93,7 +94,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, createDocumentHandler(doc.id));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -112,7 +113,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
-		const newDoc = new Proxy(doc, documentHandler);
+		const newDoc = new Proxy(doc, createDocumentHandler(tempDocId || doc.id));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -127,9 +128,17 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return newDoc;
 	};
 
-	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
+	const deleteObject = (id: string) => {
+		const index = current.findIndex((u) => $state.is(u.id, id));
+		if (index !== -1) {
+			addToPast();
+			current.splice(index, 1);
+			toLocalStorage();
+		}
+	};
+
+	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
 	const Collection = createCollectionStore(client);
-	console.log('Collection | document.svelte.ts L130', Collection);
 
 	s = documentStores;
 
@@ -160,7 +169,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
-						return getObjects((doc) => doc.id === args[0]).at(0);
+						db.byId(args[0]);
+
+						return new Proxy({ id: args[0] }, createDocumentHandler(args[0]));
 					};
 
 				case 'first':
@@ -209,7 +220,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					console.log('\ndefinition (document.svelte.ts L198):\n', definition);
 					return definition;
 
 				/*************
@@ -281,34 +291,73 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const documentHandler = {
-		get(target: any, prop: any, receiver: any): any {
-			// console.log('document handler accessed');
-			switch (prop) {
-				/**
-				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
-				 */
-				case 'update':
-					return (doc: Document_Update<UpdateType>): void => {
-						console.log('update target', target.id);
-						updateObject(target.id, doc);
-						db.update(target.id, doc, definition);
+	const createDocumentHandler = (id: string) => {
+		return {
+			get(target: any, prop: any, receiver: any): any {
+				const existingDoc = $state(current.find((doc) => doc.id === id) || {});
+
+				// Special handling for accessing the whole object
+				if (prop === Symbol.toPrimitive) {
+					return (hint) => {
+						if (hint === 'string') {
+							return JSON.stringify(existingDoc);
+						}
+						return Object.keys(existingDoc).length > 0 ? existingDoc : undefined;
 					};
-				case 'replace':
-					return (doc: Document_Replace<ReplaceType>): void => {
-						console.log('replace target', target.id);
-						replaceObject(target.id, doc);
-						db.replace(target.id, doc, definition);
-					};
-				case 'delete':
-					return () => {
-						console.log('delete target', target.id);
-						deleteObject(target.id);
-					};
-				default:
-					return Reflect.get(target, prop, receiver);
+				}
+
+				// For regular property access
+				if (prop in existingDoc) {
+					return existingDoc[prop as keyof typeof existingDoc];
+				}
+
+				switch (prop) {
+					/**
+					 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
+					 */
+					case 'update':
+						return (doc: Document_Update<UpdateType>): void => {
+							updateObject(target.id, doc);
+							db.update(target.id, doc, definition);
+						};
+					case 'replace':
+						return (doc: Document_Replace<ReplaceType>): void => {
+							replaceObject(target.id, doc);
+							db.replace(target.id, doc, definition);
+						};
+					case 'delete':
+						return () => {
+							deleteObject(target.id);
+						};
+					default:
+						return Reflect.get(target, prop, receiver);
+				}
+			},
+			ownKeys(target) {
+				return Reflect.ownKeys(current.find((doc) => doc.id === id) || {});
+			},
+			getOwnPropertyDescriptor(target, prop) {
+				const latestData = $state(current.find((doc) => doc.id === id) || {});
+				// If the property is a symbol, return undefined
+				if (prop instanceof Symbol) {
+					return undefined;
+				}
+
+				// For regular property access
+				if (prop in latestData) {
+					return (
+						Reflect.getOwnPropertyDescriptor(latestData, prop) || {
+							value: latestData[prop as keyof typeof latestData],
+							writable: true,
+							enumerable: true,
+							configurable: true
+						}
+					);
+				}
+
+				return undefined;
 			}
-		}
+		};
 	};
 
 	const getObjects = (
@@ -335,15 +384,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			addToPast();
 			const converted = docReplaceToDoc(doc, fields, definition, s);
 			Object.assign(doc, converted);
-			toLocalStorage();
-		}
-	};
-
-	const deleteObject = (id: string) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
-			addToPast();
-			current.splice(index, 1);
 			toLocalStorage();
 		}
 	};
