@@ -87,9 +87,10 @@ type NamedFunctions<
 
 class Page<T extends QueryValueObject> {
 	data: T[];
-	after?: string;
+	after?: Page<T>;
+	afterCursor?: string;
 
-	constructor(data: T[], after?: string) {
+	constructor(data: T[], after?: Page<T>) {
 		this.data = data;
 		if (after) {
 			this.after = after;

@@ -21,6 +21,7 @@ import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
 let s: DocumentStores = $state({});
+const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -178,11 +179,21 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'all':
 					return () => {
 						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current,
-							undefined
+							current.slice(0, DEFAULT_PAGE_SIZE),
+							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
 						);
-						db.all();
-						return new Proxy(result, pageHandler);
+
+						const resultState = $state({ ...result }) as Page<
+							Functions<MainType, ReplaceType, UpdateType>
+						>;
+
+						db.all().then((afterCursor: string) => {
+							if (afterCursor !== resultState.afterCursor) {
+								resultState.afterCursor = afterCursor;
+							}
+						});
+
+						return new Proxy(resultState, pageHandler);
 					};
 
 				case 'where':
@@ -268,8 +279,34 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'data':
 					return target.data;
-				case 'after':
-					return target.after;
+				case 'after': {
+					const afterValue = target.afterCursor;
+					if (afterValue) {
+						db.paginate(afterValue).then((paginatedRes: Page<Document<MainType>>) => {
+							if (!target.after) {
+								// Initialize the after property
+								const after = new Page<Document<MainType>>([], {} as Page<Document<MainType>>);
+
+								// Set the after property in target
+								target.after = {
+									...after
+								};
+							}
+							if (
+								target.after &&
+								(target?.after?.afterCursor !== paginatedRes?.after ||
+									!isEqual(target.after?.data, paginatedRes.data))
+							) {
+								target.after.afterCursor = paginatedRes?.after;
+								target.after.data = paginatedRes.data?.map((d) => new Proxy(d, documentHandler));
+							}
+						});
+
+						return new Proxy(target.after || {}, pageHandler);
+					}
+
+					return null;
+				}
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
 						target.order(...orderings); // Use the Page class's order method
@@ -283,7 +320,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 	const documentHandler = {
 		get(target: any, prop: any, receiver: any): any {
-			// console.log('document handler accessed');
 			switch (prop) {
 				/**
 				 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
