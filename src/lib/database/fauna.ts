@@ -1,12 +1,14 @@
 import type { TypeMapping } from '$fauna-typed/types';
-import { docToFaunaDoc } from '$lib/types/converters';
+import { docToFaunaDoc, docToFaunaReplaceDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
 	Page,
 	Predicate,
 	Document,
 	Document_Create,
-	Collection
+	Collection,
+	Document_Update,
+	Document_Replace
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
@@ -19,6 +21,16 @@ export type CreateDatabaseApi<T extends QueryValueObject> = {
 	last: () => Promise<void>;
 	create: (
 		document: Document_Create<TypeMapping[K]['create']>,
+		collection: Collection
+	) => Promise<void>;
+	update: (
+		id: string,
+		fields: Document_Update<TypeMapping[K]['update']>,
+		collection: Collection
+	) => Promise<void>;
+	replace: (
+		id: string,
+		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
 };
@@ -42,11 +54,9 @@ export const createDatabaseApi = <
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
-			// console.log('\nfauna.ts - all:\n', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data && response.data.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
-				// console.log('\nresponse.data.data | fauna.ts L25\n', response.data.data);
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
@@ -76,7 +86,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.where(${transformWherePredicateToFauna(filter)})`;
 
-			console.log('where:', query);
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -93,7 +102,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.all().first()`;
 
-			console.log('first:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -108,7 +116,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.firstWhere(${transformWherePredicateToFauna(filter)})`;
 
-			console.log('firstWhere:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -123,7 +130,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.all().last()`;
 
-			console.log('last:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -141,7 +147,6 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.create(${docToFaunaDoc(document, collection)})`;
 
-			console.log('create:', query);
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
@@ -152,6 +157,42 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function update(
+		id: string,
+		fields: Document_Update<TypeMapping[K]['update']>,
+		collection: Collection
+	) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")!.update(${docToFaunaUpdateDoc(fields, collection)})`;
+
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error in updating in database using update:', error);
+		}
+	}
+
+	async function replace(
+		id: string,
+		fields: Document_Replace<TypeMapping[K]['replace']>,
+		collection: Collection
+	) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")!.replace(${docToFaunaReplaceDoc(fields, collection)})`;
+
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+			if (response.data) {
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error in updating in database using replace:', error);
+		}
+	}
+
 	return {
 		all,
 		paginate,
@@ -159,6 +200,8 @@ export const createDatabaseApi = <
 		first,
 		firstWhere,
 		last,
-		create
+		create,
+		update,
+		replace
 	};
 };
