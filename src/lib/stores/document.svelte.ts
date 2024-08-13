@@ -19,6 +19,7 @@ import type { TypeMapping } from '$fauna-typed/types';
 import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
+import { TEMP_ID_PREFIX } from '$lib/types/converters/docToFaunaDoc';
 
 let s: DocumentStores = $state({});
 
@@ -169,8 +170,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
-						db.byId(args[0]);
-
 						return new Proxy({ id: args[0] }, createDocumentHandler(args[0]));
 					};
 
@@ -294,6 +293,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	const createDocumentHandler = (id: string) => {
 		return {
 			get(target: any, prop: any, receiver: any): any {
+				if (!id.startsWith(TEMP_ID_PREFIX)) {
+					db.byId(id);
+				}
+
 				const existingDoc = $state(current.find((doc) => doc.id === id) || {});
 
 				// Special handling for accessing the whole object
