@@ -11,7 +11,8 @@ import {
 	type Document_Update,
 	type DocumentStores,
 	type Collection,
-	type NamedDocument
+	type NamedDocument,
+	type All
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -32,7 +33,7 @@ export type CreateDocumentStore<
 	byId: (id: string) => Functions<T, T_Replace, T_Update>;
 	first: () => Functions<T, T_Replace, T_Update>;
 	last: () => Functions<T, T_Replace, T_Update>;
-	all: () => Page<Functions<T, T_Replace, T_Update>>;
+	all: () => All<Functions<T, T_Replace, T_Update>>;
 	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
 	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
 	firstWhere: (filter: Predicate<Document<T>>) => Functions<T, T_Replace, T_Update>;
@@ -193,7 +194,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							}
 						});
 
-						return new Proxy(resultState, pageHandler);
+						return new Proxy(resultState, allHandler);
 					};
 
 				case 'where':
@@ -266,6 +267,41 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				default:
 					// This will handle all other cases, including 'then' for Promises
 					return Reflect.get(target, prop, receiver);
+			}
+		}
+	};
+
+	const allHandler = {
+		get(target: All<Document<MainType>>, prop: keyof All<Document<MainType>>, receiver: any): any {
+			switch (prop) {
+				case 'pageSize':
+					return (size: number) => {
+						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
+							current.slice(0, size),
+							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
+						);
+
+						const resultState = $state({ ...result }) as Page<
+							Functions<MainType, ReplaceType, UpdateType>
+						>;
+
+						db.pageSize(size).then((pageSizeRes: Page<Document<MainType>>) => {
+							// TODO: check if resultState.data.length is equal to size, if not return docs from response
+							if (pageSizeRes.after !== resultState.afterCursor) {
+								resultState.afterCursor = pageSizeRes.after;
+								// resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
+							}
+
+							// if (pageSizeRes.data?.length !== resultState.data?.length) {
+							// 	resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
+							// }
+						});
+
+						return new Proxy(resultState, pageHandler);
+					};
+
+				default:
+					return pageHandler.get(target, prop as keyof Page<Document<MainType>>, receiver);
 			}
 		}
 	};
