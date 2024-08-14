@@ -93,33 +93,6 @@ const createDocumentHandler = (name: string) => {
 		}
 	};
 };
-// const documentHandler = {
-// 	get(target: any, prop: any, receiver: any): any {
-
-// 		switch (prop) {
-// 			/**
-// 			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
-// 			 */
-// 			case 'update':
-// 				return (doc: NamedDocument_Update<Collection_Update>): void => {
-// 					console.log('update target', target.name);
-// 					return updateObject(target.name, doc);
-// 				};
-// 			case 'replace':
-// 				return (doc: NamedDocument_Replace<Collection_Replace>): void => {
-// 					console.log('replace target', target.name);
-// 					return replaceObject(target.name, doc);
-// 				};
-// 			case 'delete':
-// 				return () => {
-// 					console.log('delete target', target.name);
-// 					deleteObject(target.name);
-// 				};
-// 			default:
-// 				return Reflect.get(target, prop, receiver);
-// 		}
-// 	}
-// };
 
 let collection = $state<NamedFunctions<Collection, Collection_Replace, Collection_Update>[]>([]);
 
@@ -174,7 +147,7 @@ const upsertObjectFromClient = (
 			ts: TimeStub.fromDate(new Date()),
 			coll: new Module(COLL_NAME)
 		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
-		createDocumentHandler
+		createDocumentHandler(clientDoc.name)
 	);
 
 	if (index > -1) {
@@ -189,52 +162,12 @@ const upsertObjectFromClient = (
 	return newDoc;
 };
 
-// TODO: REMOVE AFTER TESTING
-// upsertObjectFromClient({
-// 	name: 'User',
-// 	fields: {
-// 		firstName: {
-// 			signature: 'String'
-// 		},
-// 		lastName: {
-// 			signature: 'String'
-// 		},
-// 		birthdate: {
-// 			signature: 'Date'
-// 		},
-// 		account: {
-// 			signature: 'Array<Ref<Account>>?'
-// 		}
-// 	},
-// 	computed_fields: {
-// 		age: {
-// 			body: '(doc) => (Date.today().difference(doc.birthdate) / 365)',
-// 			signature: 'Number'
-// 		}
-// 	}
-// });
-
-// upsertObjectFromClient({
-// 	name: 'Account',
-// 	fields: {
-// 		user: {
-// 			signature: 'Ref<User>'
-// 		},
-// 		provider: {
-// 			signature: 'String'
-// 		},
-// 		providerUserId: {
-// 			signature: 'String'
-// 		}
-// 	}
-// });
-
 const upsertObjectFromStorage = (
 	storageDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const newDoc = new Proxy(storageDoc, createDocumentHandler);
+	const newDoc = new Proxy(storageDoc, createDocumentHandler(storageDoc.name));
 	if (index > -1) {
 		if (!isEqual(collection[index], newDoc)) {
 			collection[index] = newDoc;
@@ -250,7 +183,7 @@ const upsertObjectFromFauna = (
 	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
-	const newDoc = new Proxy(faunaDoc, createDocumentHandler);
+	const newDoc = new Proxy(faunaDoc, createDocumentHandler(faunaDoc.name));
 	if (index > -1) {
 		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
 		if (!isEqual(collection[index], newDoc)) {
@@ -266,7 +199,7 @@ const upsertObjectFromFauna = (
 };
 
 const fromLocalStorage = () => {
-	console.log('\nfromLocalStorage - collection.svelte.ts L203\n');
+	console.log('\nfromLocalStorage - collection.svelte.ts L202\n');
 	const parsedDocuments =
 		storage.get<NamedFunctions<Collection, Collection_Replace, Collection_Update>>(COLL_NAME);
 	console.log(parsedDocuments);
@@ -278,16 +211,15 @@ const fromLocalStorage = () => {
 };
 
 export const createCollectionStore = (client: Client): CreateCollectionStore => {
-	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna);
+	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna, deleteObject);
 
 	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'byName':
 					return (name: string) => {
-						console.log('Collection.byName:', name, '| collection.svelte.ts L282');
+						console.log('Collection.byName:', name, '| collection.svelte.ts L221');
 						return new Proxy({}, createDocumentHandler(name));
-						// return getObjects((doc) => doc.name === name).at(0);
 					};
 
 				case 'first':
