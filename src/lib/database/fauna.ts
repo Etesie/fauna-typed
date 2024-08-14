@@ -12,9 +12,9 @@ import type {
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
-export type CreateDatabaseApi<T extends QueryValueObject> = {
+export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
 	all: () => Promise<string | undefined>;
-	paginate: (after: string) => Promise<Page<Document<T>>>;
+	paginate: (after: string) => Promise<Page<Document<T>> | undefined>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -33,6 +33,7 @@ export type CreateDatabaseApi<T extends QueryValueObject> = {
 		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
+	pageSize: (size: number) => Promise<Page<Document<T>> | undefined>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -60,7 +61,7 @@ export const createDatabaseApi = <
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
-				return response.data.after;
+				return response.data.after as string | undefined;
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
@@ -68,7 +69,7 @@ export const createDatabaseApi = <
 		}
 	}
 
-	async function paginate(after: string) {
+	async function paginate(after: string): Promise<Page<Document<T>> | undefined> {
 		try {
 			const query = `Set.paginate("${after}")`;
 			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
@@ -193,6 +194,20 @@ export const createDatabaseApi = <
 		}
 	}
 
+	async function pageSize(size: number): Promise<Page<Document<T>> | undefined> {
+		try {
+			const query = `${COLL_NAME}.all().pageSize(${size})`;
+			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+
+			if (response.data) {
+				return response.data;
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using pageSize:', error);
+			return undefined;
+		}
+	}
+
 	return {
 		all,
 		paginate,
@@ -202,6 +217,7 @@ export const createDatabaseApi = <
 		last,
 		create,
 		update,
-		replace
+		replace,
+		pageSize
 	};
 };
