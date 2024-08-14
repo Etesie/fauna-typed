@@ -24,7 +24,7 @@ import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
 let s: DocumentStores = $state({});
-const DEFAULT_PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
