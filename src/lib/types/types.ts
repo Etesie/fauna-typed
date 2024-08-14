@@ -116,6 +116,19 @@ class Page<T extends QueryValueObject> {
 	}
 }
 
+type PageType<T extends QueryValueObject> = {
+	data: T[];
+	after?: PageType<T>;
+	order?: (...ordering: Ordering<T>[]) => PageType<T>;
+};
+
+type PageInternal<T extends QueryValueObject> = {
+	data: T[];
+	after?: PageInternal<T>;
+	afterCursor?: string;
+	order?: (...ordering: Ordering<T>[]) => PageInternal<T>;
+};
+
 type Field = {
 	signature: string;
 };
@@ -133,7 +146,7 @@ type ComputedFields = {
 	[key: string]: ComputedField;
 };
 
-type All<T extends QueryValueObject> = Page<T> & {
+type All<T extends QueryValueObject> = PageType<T> & {
 	pageSize: (size: number) => Page<T>;
 };
 
@@ -180,5 +193,7 @@ export {
 	baseFields,
 	type Predicate,
 	type DocumentStores,
-	type All
+	type All,
+	type PageType,
+	type PageInternal
 };

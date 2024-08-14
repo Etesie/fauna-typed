@@ -12,7 +12,9 @@ import {
 	type DocumentStores,
 	type Collection,
 	type NamedDocument,
-	type All
+	type All,
+	type PageType,
+	type PageInternal
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -22,7 +24,7 @@ import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
 let s: DocumentStores = $state({});
-const DEFAULT_PAGE_SIZE = 16;
+const DEFAULT_PAGE_SIZE = 8;
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -34,8 +36,8 @@ export type CreateDocumentStore<
 	first: () => Functions<T, T_Replace, T_Update>;
 	last: () => Functions<T, T_Replace, T_Update>;
 	all: () => All<Functions<T, T_Replace, T_Update>>;
-	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
-	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
+	paginate: (after: string) => PageType<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
+	where: (filter: Predicate<Document<T>>) => PageType<Functions<T, T_Replace, T_Update>>;
 	firstWhere: (filter: Predicate<Document<T>>) => Functions<T, T_Replace, T_Update>;
 	create: (doc: Document_Create<T_Create>) => Functions<T, T_Replace, T_Update>;
 	definition: NamedDocument<Collection>;
@@ -188,13 +190,13 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							Functions<MainType, ReplaceType, UpdateType>
 						>;
 
-						db.all().then((afterCursor: string) => {
+						db.all().then((afterCursor: string | undefined) => {
 							if (afterCursor !== resultState.afterCursor) {
 								resultState.afterCursor = afterCursor;
 							}
 						});
 
-						return new Proxy(resultState, allHandler);
+						return new Proxy(resultState as unknown as All<Document<MainType>>, allHandler);
 					};
 
 				case 'where':
@@ -281,14 +283,14 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
 						);
 
-						const resultState = $state({ ...result }) as Page<
+						const resultState = $state({ ...result, afterCursor: undefined }) as PageInternal<
 							Functions<MainType, ReplaceType, UpdateType>
 						>;
 
-						db.pageSize(size).then((pageSizeRes: Page<Document<MainType>>) => {
+						db.pageSize(size).then((pageSizeRes: PageInternal<Document<MainType>> | undefined) => {
 							// TODO: check if resultState.data.length is equal to size, if not return docs from response
-							if (pageSizeRes.after !== resultState.afterCursor) {
-								resultState.afterCursor = pageSizeRes.after;
+							if (pageSizeRes && pageSizeRes.after !== resultState.afterCursor) {
+								resultState.afterCursor = pageSizeRes.after as unknown as string;
 								// resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
 							}
 
@@ -301,15 +303,19 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					};
 
 				default:
-					return pageHandler.get(target, prop as keyof Page<Document<MainType>>, receiver);
+					return pageHandler.get(
+						target as PageInternal<Document<MainType>>,
+						prop as keyof PageInternal<Document<MainType>>,
+						receiver
+					);
 			}
 		}
 	};
 
 	const pageHandler = {
 		get(
-			target: Page<Document<MainType>>,
-			prop: keyof Page<Document<MainType>>,
+			target: PageInternal<Document<MainType>>,
+			prop: keyof PageInternal<Document<MainType>>,
 			receiver: any
 		): any {
 			switch (prop) {
@@ -318,25 +324,31 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'after': {
 					const afterValue = target.afterCursor;
 					if (afterValue) {
-						db.paginate(afterValue).then((paginatedRes: Page<Document<MainType>>) => {
-							if (!target.after) {
-								// Initialize the after property
-								const after = new Page<Document<MainType>>([], {} as Page<Document<MainType>>);
+						db.paginate(afterValue).then(
+							(paginatedRes: PageInternal<Document<MainType>> | undefined) => {
+								if (paginatedRes) {
+									if (!target.after) {
+										// Initialize the after property
+										const after = new Page<Document<MainType>>([], {} as Page<Document<MainType>>);
 
-								// Set the after property in target
-								target.after = {
-									...after
-								};
+										// Set the after property in target
+										target.after = {
+											...after
+										};
+									}
+									if (
+										target.after &&
+										(target?.after?.afterCursor !== paginatedRes?.after ||
+											!isEqual(target.after?.data, paginatedRes.data))
+									) {
+										target.after.afterCursor = paginatedRes?.after as unknown as string;
+										target.after.data = paginatedRes.data?.map(
+											(d) => new Proxy(d, documentHandler)
+										);
+									}
+								}
 							}
-							if (
-								target.after &&
-								(target?.after?.afterCursor !== paginatedRes?.after ||
-									!isEqual(target.after?.data, paginatedRes.data))
-							) {
-								target.after.afterCursor = paginatedRes?.after;
-								target.after.data = paginatedRes.data?.map((d) => new Proxy(d, documentHandler));
-							}
-						});
+						);
 
 						return new Proxy(target.after || {}, pageHandler);
 					}
@@ -345,7 +357,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				}
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
-						target.order(...orderings); // Use the Page class's order method
+						target?.order(...orderings); // Use the Page class's order method
 						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
 					};
 				default:

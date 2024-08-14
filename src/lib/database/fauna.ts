@@ -2,19 +2,19 @@ import type { TypeMapping } from '$fauna-typed/types';
 import { docToFaunaDoc, docToFaunaReplaceDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
-	Page,
 	Predicate,
 	Document,
 	Document_Create,
 	Collection,
 	Document_Update,
-	Document_Replace
+	Document_Replace,
+	PageInternal
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
 	all: () => Promise<string | undefined>;
-	paginate: (after: string) => Promise<Page<Document<T>> | undefined>;
+	paginate: (after: string) => Promise<PageInternal<Document<T>> | undefined>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -33,7 +33,7 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
-	pageSize: (size: number) => Promise<Page<Document<T>> | undefined>;
+	pageSize: (size: number) => Promise<PageInternal<Document<T>> | undefined>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -55,7 +55,9 @@ export const createDatabaseApi = <
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 			if (response.data && response.data.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
 				response.data.data.forEach((newDoc) => {
@@ -69,10 +71,12 @@ export const createDatabaseApi = <
 		}
 	}
 
-	async function paginate(after: string): Promise<Page<Document<T>> | undefined> {
+	async function paginate(after: string): Promise<PageInternal<Document<T>> | undefined> {
 		try {
 			const query = `Set.paginate("${after}")`;
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 
 			if (response.data) {
 				return response.data;
@@ -87,7 +91,9 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.where(${transformWherePredicateToFauna(filter)})`;
 
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
 				response.data.data.forEach((newDoc) => {
@@ -194,10 +200,12 @@ export const createDatabaseApi = <
 		}
 	}
 
-	async function pageSize(size: number): Promise<Page<Document<T>> | undefined> {
+	async function pageSize(size: number): Promise<PageInternal<Document<T>> | undefined> {
 		try {
 			const query = `${COLL_NAME}.all().pageSize(${size})`;
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 
 			if (response.data) {
 				return response.data;
