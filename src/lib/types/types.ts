@@ -104,29 +104,43 @@ class Page<T extends QueryValueObject> {
 	 * import { asc, desc } from 'fauna-typed/stores';
 	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
 	 */
-	order(...orderings: Ordering<T>[]): Page<T> {
-		this.data.sort((a: T, b: T) => {
+	order(data: T[], ...orderings: Ordering<T>[]): T[] {
+		data?.sort?.((a: T, b: T) => {
 			for (const ordering of orderings) {
 				const result = ordering(a, b);
 				if (result !== 0) return result;
 			}
 			return 0;
 		});
-		return this;
+		return data;
 	}
 }
 
 type PageType<T extends QueryValueObject> = {
 	data: T[];
 	after?: PageType<T>;
-	order?: (...ordering: Ordering<T>[]) => PageType<T>;
+	/**
+	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
+	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
+	 * @example
+	 * import { asc, desc } from 'fauna-typed/stores';
+	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
+	 */
+	order: (...ordering: Ordering<T>[]) => PageType<T>;
 };
 
 type PageInternal<T extends QueryValueObject> = {
 	data: T[];
 	after?: PageInternal<T>;
 	afterCursor?: string;
-	order?: (...ordering: Ordering<T>[]) => PageInternal<T>;
+	/**
+	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
+	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
+	 * @example
+	 * import { asc, desc } from 'fauna-typed/stores';
+	 * User.all().order([{firstName: "John", lastName: "Doe"}], asc((u) => u.firstName), desc((u) => u.lastName)))
+	 */
+	order?: (data: T[], ...ordering: Ordering<T>[]) => T[];
 };
 
 type Field = {

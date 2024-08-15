@@ -203,7 +203,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					return (filter: Predicate<Document<MainType>>) => {
 						const result = new Page(getObjects(filter), undefined);
 						db.where(filter);
-						return new Proxy(result, pageHandler);
+						return new Proxy(result as unknown as PageInternal<Document<MainType>>, pageHandler);
 					};
 
 				case 'firstWhere':
@@ -287,10 +287,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							Functions<MainType, ReplaceType, UpdateType>
 						>;
 
-						db.pageSize(size).then((pageSizeRes: PageInternal<Document<MainType>> | undefined) => {
+						db.pageSize(size).then((pageSizeRes: string | undefined) => {
 							// TODO: check if resultState.data.length is equal to size, if not return docs from response
-							if (pageSizeRes && pageSizeRes.after !== resultState.afterCursor) {
-								resultState.afterCursor = pageSizeRes.after as unknown as string;
+							if (pageSizeRes && pageSizeRes !== resultState.afterCursor) {
+								resultState.afterCursor = pageSizeRes as unknown as string;
 								// resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
 							}
 
@@ -299,12 +299,15 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							// }
 						});
 
-						return new Proxy(resultState, pageHandler);
+						return new Proxy(
+							resultState as unknown as PageInternal<Document<MainType>>,
+							pageHandler
+						);
 					};
 
 				default:
 					return pageHandler.get(
-						target as PageInternal<Document<MainType>>,
+						target as unknown as PageInternal<Document<MainType>>,
 						prop as keyof PageInternal<Document<MainType>>,
 						receiver
 					);
@@ -357,8 +360,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				}
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
-						target?.order(...orderings); // Use the Page class's order method
-						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
+						const page = new Page<Document<MainType>>([]);
+						const sortedData = page.order([...(target.data || [])], ...orderings); // Use the Page class's order method
+
+						return new Proxy({ ...target, data: sortedData }, pageHandler); // Return a proxy to allow chaining
 					};
 				default:
 					return Reflect.get(target, prop, receiver);
