@@ -12,7 +12,6 @@ import {
 	type DocumentStores,
 	type Collection,
 	type NamedDocument,
-	type All,
 	type PageType,
 	type PageInternal
 } from '$lib/types/types';
@@ -35,7 +34,7 @@ export type CreateDocumentStore<
 	byId: (id: string) => Functions<T, T_Replace, T_Update>;
 	first: () => Functions<T, T_Replace, T_Update>;
 	last: () => Functions<T, T_Replace, T_Update>;
-	all: () => All<Functions<T, T_Replace, T_Update>>;
+	all: () => PageType<Functions<T, T_Replace, T_Update>>;
 	paginate: (after: string) => PageType<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
 	where: (filter: Predicate<Document<T>>) => PageType<Functions<T, T_Replace, T_Update>>;
 	firstWhere: (filter: Predicate<Document<T>>) => Functions<T, T_Replace, T_Update>;
@@ -196,7 +195,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							}
 						});
 
-						return new Proxy(resultState as unknown as All<Document<MainType>>, allHandler);
+						return new Proxy(
+							resultState as unknown as PageInternal<Document<MainType>>,
+							pageHandler
+						);
 					};
 
 				case 'where':
@@ -269,48 +271,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				default:
 					// This will handle all other cases, including 'then' for Promises
 					return Reflect.get(target, prop, receiver);
-			}
-		}
-	};
-
-	const allHandler = {
-		get(target: All<Document<MainType>>, prop: keyof All<Document<MainType>>, receiver: any): any {
-			switch (prop) {
-				case 'pageSize':
-					return (size: number) => {
-						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current.slice(0, size),
-							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
-						);
-
-						const resultState = $state({ ...result, afterCursor: undefined }) as PageInternal<
-							Functions<MainType, ReplaceType, UpdateType>
-						>;
-
-						db.pageSize(size).then((pageSizeRes: string | undefined) => {
-							// TODO: check if resultState.data.length is equal to size, if not return docs from response
-							if (pageSizeRes && pageSizeRes !== resultState.afterCursor) {
-								resultState.afterCursor = pageSizeRes as unknown as string;
-								// resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
-							}
-
-							// if (pageSizeRes.data?.length !== resultState.data?.length) {
-							// 	resultState.data = pageSizeRes.data?.map((doc) => new Proxy(doc, documentHandler));
-							// }
-						});
-
-						return new Proxy(
-							resultState as unknown as PageInternal<Document<MainType>>,
-							pageHandler
-						);
-					};
-
-				default:
-					return pageHandler.get(
-						target as unknown as PageInternal<Document<MainType>>,
-						prop as keyof PageInternal<Document<MainType>>,
-						receiver
-					);
 			}
 		}
 	};

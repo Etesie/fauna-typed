@@ -160,10 +160,6 @@ type ComputedFields = {
 	[key: string]: ComputedField;
 };
 
-type All<T extends QueryValueObject> = PageType<T> & {
-	pageSize: (size: number) => Page<T>;
-};
-
 const baseFields = {
 	id: {
 		signature: 'String'
@@ -207,7 +203,6 @@ export {
 	baseFields,
 	type Predicate,
 	type DocumentStores,
-	type All,
 	type PageType,
 	type PageInternal
 };

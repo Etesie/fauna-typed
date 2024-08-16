@@ -33,7 +33,6 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 		fields: Document_Replace<TypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
-	pageSize: (size: number) => Promise<PageInternal<Document<T>> | undefined>;
 };
 
 const transformWherePredicateToFauna = <T extends QueryValueObject>(
@@ -79,7 +78,7 @@ export const createDatabaseApi = <
 			);
 
 			if (response.data) {
-				return response.data;
+				return response.data as unknown as PageInternal<Document<T>>;
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
@@ -200,22 +199,6 @@ export const createDatabaseApi = <
 		}
 	}
 
-	async function pageSize(size: number): Promise<PageInternal<Document<T>> | undefined> {
-		try {
-			const query = `${COLL_NAME}.all().pageSize(${size})`;
-			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
-				fql([query])
-			);
-
-			if (response.data) {
-				return response.data;
-			}
-		} catch (error) {
-			console.error('Error fetching document from database using pageSize:', error);
-			return undefined;
-		}
-	}
-
 	return {
 		all,
 		paginate,
@@ -225,7 +208,6 @@ export const createDatabaseApi = <
 		last,
 		create,
 		update,
-		replace,
-		pageSize
+		replace
 	};
 };
