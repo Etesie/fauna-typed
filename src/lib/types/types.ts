@@ -85,12 +85,12 @@ type NamedFunctions<
 	delete: () => void;
 } & NamedDocument<T>;
 
-class Page<T extends QueryValueObject> {
+class PageInternal<T extends QueryValueObject> {
 	data: T[];
-	after?: Page<T>;
+	after?: PageInternal<T>;
 	afterCursor?: string;
 
-	constructor(data: T[], after?: Page<T>) {
+	constructor(data: T[], after?: PageInternal<T>) {
 		this.data = data;
 		if (after) {
 			this.after = after;
@@ -102,7 +102,7 @@ class Page<T extends QueryValueObject> {
 	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
 	 * @example
 	 * import { asc, desc } from 'fauna-typed/stores';
-	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
+	 * User.all().order([{firstName: "John", lastName: "Doe"}], asc((u) => u.firstName), desc((u) => u.lastName)))
 	 */
 	order(data: T[], ...orderings: Ordering<T>[]): T[] {
 		data?.sort?.((a: T, b: T) => {
@@ -116,10 +116,9 @@ class Page<T extends QueryValueObject> {
 	}
 }
 
-// This PageType is used to expose the Page object to the client.
-type PageType<T extends QueryValueObject> = {
+type Page<T extends QueryValueObject> = {
 	data: T[];
-	after?: PageType<T>;
+	after?: Page<T>;
 	/**
 	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
 	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
@@ -127,21 +126,7 @@ type PageType<T extends QueryValueObject> = {
 	 * import { asc, desc } from 'fauna-typed/stores';
 	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
 	 */
-	order: (...ordering: Ordering<T>[]) => PageType<T>;
-};
-
-type PageInternal<T extends QueryValueObject> = {
-	data: T[];
-	after?: PageInternal<T>;
-	afterCursor?: string;
-	/**
-	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
-	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
-	 * @example
-	 * import { asc, desc } from 'fauna-typed/stores';
-	 * User.all().order([{firstName: "John", lastName: "Doe"}], asc((u) => u.firstName), desc((u) => u.lastName)))
-	 */
-	order?: (data: T[], ...ordering: Ordering<T>[]) => T[];
+	order: (...ordering: Ordering<T>[]) => Page<T>;
 };
 
 type Field = {
@@ -197,13 +182,12 @@ export {
 	type Document_Replace,
 	type Functions,
 	type NamedFunctions,
-	Page,
 	type Field,
 	type Fields,
 	type ComputedFields,
 	baseFields,
 	type Predicate,
 	type DocumentStores,
-	type PageType,
-	type PageInternal
+	type Page,
+	PageInternal
 };

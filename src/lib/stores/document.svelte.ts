@@ -3,7 +3,6 @@ import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
 	type Predicate,
-	Page,
 	type Functions,
 	type Document,
 	type Document_Create,
@@ -12,8 +11,8 @@ import {
 	type DocumentStores,
 	type Collection,
 	type NamedDocument,
-	type PageType,
-	type PageInternal
+	type Page,
+	PageInternal
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -34,9 +33,9 @@ export type CreateDocumentStore<
 	byId: (id: string) => Functions<T, T_Replace, T_Update>;
 	first: () => Functions<T, T_Replace, T_Update>;
 	last: () => Functions<T, T_Replace, T_Update>;
-	all: () => PageType<Functions<T, T_Replace, T_Update>>;
-	paginate: (after: string) => PageType<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
-	where: (filter: Predicate<Document<T>>) => PageType<Functions<T, T_Replace, T_Update>>;
+	all: () => Page<Functions<T, T_Replace, T_Update>>;
+	paginate: (after: string) => Page<Functions<T, T_Replace, T_Update>>; // TODO: To be implemented
+	where: (filter: Predicate<Document<T>>) => Page<Functions<T, T_Replace, T_Update>>;
 	firstWhere: (filter: Predicate<Document<T>>) => Functions<T, T_Replace, T_Update>;
 	create: (doc: Document_Create<T_Create>) => Functions<T, T_Replace, T_Update>;
 	definition: NamedDocument<Collection>;
@@ -180,12 +179,14 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'all':
 					return () => {
-						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
+						const result = new PageInternal<Functions<MainType, ReplaceType, UpdateType>>(
 							current.slice(0, DEFAULT_PAGE_SIZE),
-							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
+							{} as PageInternal<Functions<MainType, ReplaceType, UpdateType>>
 						);
 
-						const resultState = $state({ ...result }) as PageInternal<Document<MainType>>;
+						const resultState = $state({ ...result }) as PageInternal<
+							Functions<MainType, ReplaceType, UpdateType>
+						>;
 
 						db.all().then((afterCursor: string | undefined) => {
 							if (afterCursor !== resultState.afterCursor) {
@@ -198,7 +199,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
-						const result = new Page(getObjects(filter), undefined);
+						const result = new PageInternal(getObjects(filter), undefined);
 						db.where(filter);
 						return new Proxy(result as unknown as PageInternal<Document<MainType>>, pageHandler);
 					};
@@ -287,7 +288,10 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 								if (paginatedRes) {
 									if (!target.after) {
 										// Initialize the after property
-										const after = new Page<Document<MainType>>([], {} as Page<Document<MainType>>);
+										const after = new PageInternal<Document<MainType>>(
+											[],
+											{} as PageInternal<Document<MainType>>
+										);
 
 										// Set the after property in target
 										target.after = {
@@ -315,10 +319,13 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				}
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
-						const page = new Page<Document<MainType>>([]);
+						const page = new PageInternal<Document<MainType>>([]);
 						const sortedData = page.order([...(target.data || [])], ...orderings); // Use the Page class's order method
 
-						return new Proxy({ ...target, data: sortedData }, pageHandler); // Return a proxy to allow chaining
+						return new Proxy(
+							{ ...target, data: sortedData } as unknown as PageInternal<Document<MainType>>,
+							pageHandler
+						); // Return a proxy to allow chaining
 					};
 				default:
 					return Reflect.get(target, prop, receiver);
