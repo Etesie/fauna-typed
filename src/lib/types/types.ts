@@ -116,6 +116,7 @@ class Page<T extends QueryValueObject> {
 	}
 }
 
+// This PageType is used to expose the Page object to the client.
 type PageType<T extends QueryValueObject> = {
 	data: T[];
 	after?: PageType<T>;

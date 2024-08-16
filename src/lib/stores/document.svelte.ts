@@ -185,9 +185,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							{} as Page<Functions<MainType, ReplaceType, UpdateType>>
 						);
 
-						const resultState = $state({ ...result }) as Page<
-							Functions<MainType, ReplaceType, UpdateType>
-						>;
+						const resultState = $state({ ...result }) as PageInternal<Document<MainType>>;
 
 						db.all().then((afterCursor: string | undefined) => {
 							if (afterCursor !== resultState.afterCursor) {
@@ -195,10 +193,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 							}
 						});
 
-						return new Proxy(
-							resultState as unknown as PageInternal<Document<MainType>>,
-							pageHandler
-						);
+						return new Proxy(resultState, pageHandler);
 					};
 
 				case 'where':
