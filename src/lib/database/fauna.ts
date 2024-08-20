@@ -2,18 +2,19 @@ import type { TypeMapping } from '$fauna-typed/types';
 import { docToFaunaDoc, docToFaunaReplaceDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
-	Page,
 	Predicate,
 	Document,
 	Document_Create,
 	Collection,
 	Document_Update,
-	Document_Replace
+	Document_Replace,
+	PageInternal
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
-	all: () => Promise<void>;
+	all: () => Promise<string | undefined>;
+	paginate: (after: string) => Promise<PageInternal<Document<T>> | undefined>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
 	first: () => Promise<void>;
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -53,15 +54,35 @@ export const createDatabaseApi = <
 	async function all() {
 		try {
 			const query = `${COLL_NAME}.all()`;
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 			if (response.data && response.data.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
 				response.data.data.forEach((newDoc) => {
 					upsertObjectFromFauna(newDoc);
 				});
+				return response.data.after as string | undefined;
 			}
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
+			return undefined;
+		}
+	}
+
+	async function paginate(after: string): Promise<PageInternal<Document<T>> | undefined> {
+		try {
+			const query = `Set.paginate("${after}")`;
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
+
+			if (response.data) {
+				return response.data as unknown as PageInternal<Document<T>>;
+			}
+		} catch (error) {
+			console.error('Error fetching document from database:', error);
+			return undefined;
 		}
 	}
 
@@ -69,7 +90,9 @@ export const createDatabaseApi = <
 		try {
 			const query = `${COLL_NAME}.where(${transformWherePredicateToFauna(filter)})`;
 
-			const response = await client.query<Page<Functions<T, T_Replace, T_Update>>>(fql([query]));
+			const response = await client.query<PageInternal<Functions<T, T_Replace, T_Update>>>(
+				fql([query])
+			);
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
 				response.data.data.forEach((newDoc) => {
@@ -178,6 +201,7 @@ export const createDatabaseApi = <
 
 	return {
 		all,
+		paginate,
 		where,
 		first,
 		firstWhere,
