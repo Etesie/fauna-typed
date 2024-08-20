@@ -1,5 +1,5 @@
 import {
-	Page,
+	PageInternal,
 	type Collection,
 	type Collection_Create,
 	type Collection_Replace,
@@ -9,6 +9,7 @@ import {
 	type NamedDocument_Replace,
 	type NamedDocument_Update,
 	type NamedFunctions,
+	type Page,
 	type Predicate
 } from '$lib/types/types';
 import { Client, Module, TimeStub } from 'fauna';
@@ -239,7 +240,7 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 
 				case 'all':
 					return () => {
-						const result = new Page<
+						const result = new PageInternal<
 							NamedFunctions<Collection, Collection_Replace, Collection_Update>
 						>(collection, undefined);
 						db.all();
@@ -248,7 +249,7 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 
 				case 'where':
 					return (filter: Predicate<NamedDocument<Collection>>) => {
-						const result = new Page(getObjects(filter), undefined);
+						const result = new PageInternal(getObjects(filter), undefined);
 						// fetchWhereFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
@@ -263,8 +264,8 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 
 	const pageHandler = {
 		get(
-			target: Page<NamedDocument<Collection>>,
-			prop: keyof Page<NamedDocument<Collection>>,
+			target: PageInternal<NamedDocument<Collection>>,
+			prop: keyof PageInternal<NamedDocument<Collection>>,
 			receiver: any
 		): any {
 			switch (prop) {

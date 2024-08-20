@@ -3,7 +3,6 @@ import type { Ordering } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
 	type Predicate,
-	Page,
 	type Functions,
 	type Document,
 	type Document_Create,
@@ -11,7 +10,9 @@ import {
 	type Document_Update,
 	type DocumentStores,
 	type Collection,
-	type NamedDocument
+	type NamedDocument,
+	type Page,
+	PageInternal
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
 import { createCollectionStore } from './collection.svelte';
@@ -22,6 +23,7 @@ import isEqual from 'lodash.isequal';
 import { TEMP_ID_PREFIX } from '$lib/types/converters/docToFaunaDoc';
 
 let s: DocumentStores = $state({});
+const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
 	T extends QueryValueObject,
@@ -193,19 +195,29 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'all':
 					return () => {
-						const result = new Page<Functions<MainType, ReplaceType, UpdateType>>(
-							current,
-							undefined
+						const result = new PageInternal<Functions<MainType, ReplaceType, UpdateType>>(
+							current.slice(0, DEFAULT_PAGE_SIZE),
+							{} as PageInternal<Functions<MainType, ReplaceType, UpdateType>>
 						);
-						db.all();
-						return new Proxy(result, pageHandler);
+
+						const resultState = $state({ ...result }) as PageInternal<
+							Functions<MainType, ReplaceType, UpdateType>
+						>;
+
+						db.all().then((afterCursor: string | undefined) => {
+							if (afterCursor !== resultState.afterCursor) {
+								resultState.afterCursor = afterCursor;
+							}
+						});
+
+						return new Proxy(resultState, pageHandler);
 					};
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
-						const result = new Page(getObjects(filter), undefined);
+						const result = new PageInternal(getObjects(filter), undefined);
 						db.where(filter);
-						return new Proxy(result, pageHandler);
+						return new Proxy(result as unknown as PageInternal<Document<MainType>>, pageHandler);
 					};
 
 				case 'firstWhere':
@@ -276,19 +288,59 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 	const pageHandler = {
 		get(
-			target: Page<Document<MainType>>,
-			prop: keyof Page<Document<MainType>>,
+			target: PageInternal<Document<MainType>>,
+			prop: keyof PageInternal<Document<MainType>>,
 			receiver: any
 		): any {
 			switch (prop) {
 				case 'data':
 					return target.data;
-				case 'after':
-					return target.after;
+				case 'after': {
+					const afterValue = target.afterCursor;
+					if (afterValue) {
+						db.paginate(afterValue).then(
+							(paginatedRes: PageInternal<Document<MainType>> | undefined) => {
+								if (paginatedRes) {
+									if (!target.after) {
+										// Initialize the after property
+										const after = new PageInternal<Document<MainType>>(
+											[],
+											{} as PageInternal<Document<MainType>>
+										);
+
+										// Set the after property in target
+										target.after = {
+											...after
+										};
+									}
+									if (
+										target.after &&
+										(target?.after?.afterCursor !== paginatedRes?.after ||
+											!isEqual(target.after?.data, paginatedRes.data))
+									) {
+										target.after.afterCursor = paginatedRes?.after as unknown as string;
+										target.after.data = paginatedRes.data?.map(
+											(d) => new Proxy(d, createDocumentHandler(d))
+										);
+									}
+								}
+							}
+						);
+
+						return new Proxy(target.after || {}, pageHandler);
+					}
+
+					return null;
+				}
 				case 'order':
 					return (...orderings: Ordering<Document<MainType>>[]) => {
-						target.order(...orderings); // Use the Page class's order method
-						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
+						const page = new PageInternal<Document<MainType>>([]);
+						const sortedData = page.order([...(target.data || [])], ...orderings); // Use the Page class's order method
+
+						return new Proxy(
+							{ ...target, data: sortedData } as unknown as PageInternal<Document<MainType>>,
+							pageHandler
+						); // Return a proxy to allow chaining
 					};
 				default:
 					return Reflect.get(target, prop, receiver);
