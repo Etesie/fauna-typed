@@ -74,7 +74,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const convertedDoc = docCreateToDoc(doc, definition, s);
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
 			convertedDoc,
-			createDocumentHandler(convertedDoc.id)
+			createDocumentHandler(convertedDoc)
 		);
 
 		if (index > -1) {
@@ -95,7 +95,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
-		const newDoc = new Proxy(doc, createDocumentHandler(doc.id));
+		const newDoc = new Proxy(doc, createDocumentHandler(doc));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -114,7 +114,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
-		const newDoc = new Proxy(doc, createDocumentHandler(tempDocId || doc.id));
+		const newDoc = new Proxy(doc, createDocumentHandler(doc));
 
 		if (index > -1) {
 			if (!isEqual(current[index], newDoc)) {
@@ -170,7 +170,13 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
-						return new Proxy({ id: args[0] }, createDocumentHandler(args[0]));
+						if (args[0] && !args[0]?.startsWith(TEMP_ID_PREFIX)) {
+							db.byId(args[0]);
+						}
+						const latestData = current.find((doc) => doc.id === args[0]) || {
+							id: args[0]
+						};
+						return new Proxy(latestData, createDocumentHandler(latestData));
 					};
 
 				case 'first':
@@ -290,28 +296,22 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		}
 	};
 
-	const createDocumentHandler = (id: string) => {
+	const createDocumentHandler = (doc: Record<string, any> = {}) => {
 		return {
 			get(target: any, prop: any, receiver: any): any {
-				if (!id.startsWith(TEMP_ID_PREFIX)) {
-					db.byId(id);
-				}
-
-				const existingDoc = $state(current.find((doc) => doc.id === id) || {});
-
 				// Special handling for accessing the whole object
 				if (prop === Symbol.toPrimitive) {
 					return (hint) => {
 						if (hint === 'string') {
-							return JSON.stringify(existingDoc);
+							return JSON.stringify(doc);
 						}
-						return Object.keys(existingDoc).length > 0 ? existingDoc : undefined;
+						return Object.keys(doc).length > 0 ? doc : undefined;
 					};
 				}
 
 				// For regular property access
-				if (prop in existingDoc) {
-					return existingDoc[prop as keyof typeof existingDoc];
+				if (prop in doc) {
+					return doc[prop as keyof typeof doc];
 				}
 
 				switch (prop) {
@@ -337,20 +337,19 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				}
 			},
 			ownKeys(target) {
-				return Reflect.ownKeys(current.find((doc) => doc.id === id) || {});
+				return Reflect.ownKeys(doc);
 			},
 			getOwnPropertyDescriptor(target, prop) {
-				const latestData = $state(current.find((doc) => doc.id === id) || {});
 				// If the property is a symbol, return undefined
 				if (prop instanceof Symbol) {
 					return undefined;
 				}
 
 				// For regular property access
-				if (prop in latestData) {
+				if (prop in doc) {
 					return (
-						Reflect.getOwnPropertyDescriptor(latestData, prop) || {
-							value: latestData[prop as keyof typeof latestData],
+						Reflect.getOwnPropertyDescriptor(doc, prop) || {
+							value: doc[prop as keyof typeof doc],
 							writable: true,
 							enumerable: true,
 							configurable: true

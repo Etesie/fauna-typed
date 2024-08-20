@@ -34,23 +34,22 @@ type CreateCollectionStore = {
 	destroy: () => void;
 };
 
-const createDocumentHandler = (name: string) => {
+const createDocumentHandler = (doc: Record<string, any> = {}) => {
 	return {
 		get(target: any, prop: any, receiver: any): any {
-			const latestData = $state(getObjects((doc) => doc.name === name).at(0) || {});
 			// Special handling for accessing the whole object
 			if (prop === Symbol.toPrimitive) {
 				return (hint) => {
 					if (hint === 'string') {
-						return JSON.stringify(latestData);
+						return JSON.stringify(doc);
 					}
-					return Object.keys(latestData).length > 0 ? latestData : undefined;
+					return Object.keys(doc).length > 0 ? doc : undefined;
 				};
 			}
 
 			// For regular property access
-			if (prop in latestData) {
-				return latestData[prop];
+			if (prop in doc) {
+				return doc[prop];
 			}
 
 			switch (prop) {
@@ -77,17 +76,23 @@ const createDocumentHandler = (name: string) => {
 			}
 		},
 		ownKeys(target) {
-			return Reflect.ownKeys(getObjects((doc) => doc.name === name).at(0) || {});
+			return Reflect.ownKeys(doc);
 		},
 		getOwnPropertyDescriptor(target, prop) {
-			const latestData = getObjects((doc) => doc.name === name).at(0) || {};
-			if (prop in latestData) {
-				return {
-					value: latestData[prop],
-					writable: true,
-					enumerable: true,
-					configurable: true
-				};
+			// If the property is a symbol, return undefined
+			if (prop instanceof Symbol) {
+				return undefined;
+			}
+			// For regular property access
+			if (prop in doc) {
+				return (
+					Reflect.getOwnPropertyDescriptor(doc, prop) || {
+						value: doc[prop as keyof typeof doc],
+						writable: true,
+						enumerable: true,
+						configurable: true
+					}
+				);
 			}
 			return undefined;
 		}
@@ -141,14 +146,13 @@ const upsertObjectFromClient = (
 	clientDoc: NamedDocument_Create<Collection_Create>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((doc) => $state.is(doc.name, clientDoc.name));
-	const newDoc = new Proxy(
-		{
-			...clientDoc,
-			ts: TimeStub.fromDate(new Date()),
-			coll: new Module(COLL_NAME)
-		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
-		createDocumentHandler(clientDoc.name)
-	);
+
+	const docData = {
+		...clientDoc,
+		ts: TimeStub.fromDate(new Date()),
+		coll: new Module(COLL_NAME)
+	} as NamedFunctions<Collection, Collection_Replace, Collection_Update>;
+	const newDoc = new Proxy(docData, createDocumentHandler(docData));
 
 	if (index > -1) {
 		if (!isEqual(collection[index], newDoc)) {
@@ -167,7 +171,7 @@ const upsertObjectFromStorage = (
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
 	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const newDoc = new Proxy(storageDoc, createDocumentHandler(storageDoc.name));
+	const newDoc = new Proxy(storageDoc, createDocumentHandler(storageDoc));
 	if (index > -1) {
 		if (!isEqual(collection[index], newDoc)) {
 			collection[index] = newDoc;
@@ -183,7 +187,7 @@ const upsertObjectFromFauna = (
 	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
 	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
-	const newDoc = new Proxy(faunaDoc, createDocumentHandler(faunaDoc.name));
+	const newDoc = new Proxy(faunaDoc, createDocumentHandler(faunaDoc));
 	if (index > -1) {
 		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
 		if (!isEqual(collection[index], newDoc)) {
@@ -219,7 +223,8 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 				case 'byName':
 					return (name: string) => {
 						console.log('Collection.byName:', name, '| collection.svelte.ts L221');
-						return new Proxy({}, createDocumentHandler(name));
+						const latestData = collection.find((doc) => doc.name === name) || { name };
+						return new Proxy(latestData, createDocumentHandler(latestData));
 					};
 
 				case 'first':
