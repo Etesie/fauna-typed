@@ -73,7 +73,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	): Functions<MainType, ReplaceType, UpdateType> => {
 		const index = current.findIndex((u) => $state.is(u.id, doc.id));
 
-		const convertedDoc = docCreateToDoc(doc, definition, s);
+		const convertedDoc = docCreateToDoc(doc, CollectionStore.byName(COLL_NAME), s);
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
 			convertedDoc,
 			createDocumentHandler(convertedDoc)
@@ -141,11 +141,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
-	const Collection = createCollectionStore(client);
+	const CollectionStore = createCollectionStore(client);
 
 	s = documentStores;
-
-	const definition = Collection.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -229,7 +227,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'create':
 					return (document: Document_Create<CreateType>) => {
 						const optimisticResult = upsertObjectFromClient(document);
-						db.create({ ...document, id: optimisticResult.id }, definition);
+						db.create({ ...document, id: optimisticResult.id }, CollectionStore.byName(COLL_NAME));
 
 						return optimisticResult;
 					};
@@ -237,7 +235,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					return definition;
+					return CollectionStore.byName(COLL_NAME);
 
 				/*************
 				 * Undo/Redo
@@ -373,12 +371,12 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					case 'update':
 						return (doc: Document_Update<UpdateType>): void => {
 							updateObject(target.id, doc);
-							db.update(target.id, doc, definition);
+							db.update(target.id, doc, CollectionStore.byName(COLL_NAME));
 						};
 					case 'replace':
 						return (doc: Document_Replace<ReplaceType>): void => {
 							replaceObject(target.id, doc);
-							db.replace(target.id, doc, definition);
+							db.replace(target.id, doc, CollectionStore.byName(COLL_NAME));
 						};
 					case 'delete':
 						return () => {
@@ -424,7 +422,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			const converted = docUpdateToDoc(doc, fields, definition, s);
+			const converted = docUpdateToDoc(doc, fields, CollectionStore.byName(COLL_NAME), s);
 			Object.assign(doc, converted);
 			toLocalStorage();
 
@@ -436,7 +434,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		const doc = current.find((u) => $state.is(u.id, id));
 		if (doc) {
 			addToPast();
-			const converted = docReplaceToDoc(doc, fields, definition, s);
+			const converted = docReplaceToDoc(doc, fields, CollectionStore.byName(COLL_NAME), s);
 			Object.assign(doc, converted);
 			toLocalStorage();
 		}
