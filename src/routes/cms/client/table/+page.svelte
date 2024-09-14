@@ -2,7 +2,7 @@
 	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import Sort from './sort.svelte';
-	import type { Ordering } from '$lib/stores/_shared/order';
+	import type { OrderList } from '$lib/stores/_shared/order';
 	import type { Sorter } from './sort';
 	import { type Document, type Document_Create, baseFields } from '$lib/types/types';
 	import type { QueryValueObject } from 'fauna';
@@ -46,7 +46,7 @@
 	};
 
 	// Create from sorter `Sorter[]` an array of `Ordering<UserClass>`
-	const getSorters = (sorter: Sorter[]): Ordering<QueryValueObject>[] => {
+	const getSorters = (sorter: Sorter[]): OrderList<QueryValueObject>[] => {
 		return sorter.map((sort) => {
 			const key = sort.key as keyof QueryValueObject;
 			const sorterFunction = sort.direction === 'asc' ? asc : desc;

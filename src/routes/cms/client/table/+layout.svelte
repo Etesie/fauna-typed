@@ -6,10 +6,9 @@
 
 	let allCollections = $state(s.Collection.all().data);
 
-	let group = $state($page.url.searchParams.get('coll'));
+	let group = $derived($page.url.searchParams.get('coll'));
 	if (!group) {
 		const url = new URL(window.location.href);
-		group = allCollections[0].name;
 		url.searchParams.set('coll', allCollections[0].name);
 	}
 
@@ -25,11 +24,7 @@
 <Tabs>
 	{#snippet list()}
 		{#each allCollections as collection}
-			<Tabs.Control
-				bind:group
-				name={collection.name}
-				onclick={() => handleTabClick(collection.name)}
-			>
+			<Tabs.Control {group} name={collection.name} onclick={() => handleTabClick(collection.name)}>
 				{collection.name}
 			</Tabs.Control>
 		{/each}

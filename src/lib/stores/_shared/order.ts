@@ -1,10 +1,10 @@
-export type Ordering<T> = (a: T, b: T) => number;
+export type OrderList<T> = (a: T, b: T) => number;
 
 // Helper types to extract property names from functions
 type PropType<T, Prop extends keyof T> = T[Prop];
 type PropFunction<T> = (item: T) => PropType<T, keyof T>;
 
-export function asc<T>(propFunction: PropFunction<T>): Ordering<T> {
+export function asc<T>(propFunction: PropFunction<T>): OrderList<T> {
 	return (a: T, b: T) => {
 		const aValue = propFunction(a);
 		const bValue = propFunction(b);
@@ -18,7 +18,7 @@ export function asc<T>(propFunction: PropFunction<T>): Ordering<T> {
 	};
 }
 
-export function desc<T>(propFunction: PropFunction<T>): Ordering<T> {
+export function desc<T>(propFunction: PropFunction<T>): OrderList<T> {
 	return (a: T, b: T) => {
 		const aValue = propFunction(a);
 		const bValue = propFunction(b);

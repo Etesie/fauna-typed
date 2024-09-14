@@ -14,11 +14,25 @@ import {
 } from '$lib/types/types';
 import { Client, Module, TimeStub } from 'fauna';
 import { storage } from './_shared/local-storage';
-import type { Ordering } from './_shared/order';
+import type { OrderList } from './_shared/order';
 import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
 const COLL_NAME = 'Collection';
+
+const documentHandlerMemoizedByName = (() => {
+	console.log('collection.svelte.ts | documentHandlerMemoizedByName 1');
+	const cache = new Map();
+	return (name: string) => {
+		console.log('collection.svelte.ts | documentHandlerMemoizedByName 2');
+		if (!cache.has(name)) {
+			console.log('collection.svelte.ts | documentHandlerMemoizedByName 2-if');
+			cache.set(name, new Proxy({}, createDocumentHandler(name)));
+		}
+		console.log('collection.svelte.ts | documentHandlerMemoizedByName 3 | collection.svelte.ts');
+		return cache.get(name);
+	};
+})();
 
 type CreateCollectionStore = {
 	byName: (name: string) => NamedFunctions<Collection, Collection_Replace, Collection_Update>;
@@ -38,10 +52,13 @@ type CreateCollectionStore = {
 const createDocumentHandler = (name: string) => {
 	return {
 		get(target: any, prop: any, receiver: any): any {
-			const latestData = $state(getObjects((doc) => doc.name === name).at(0) || {});
+			const latestData =
+				collection.filter((doc) => doc.name === name).at(0) ||
+				({} as NamedFunctions<Collection, Collection_Replace, Collection_Update>);
+
 			// Special handling for accessing the whole object
 			if (prop === Symbol.toPrimitive) {
-				return (hint) => {
+				return (hint: any) => {
 					if (hint === 'string') {
 						return JSON.stringify(latestData);
 					}
@@ -77,11 +94,12 @@ const createDocumentHandler = (name: string) => {
 					return Reflect.get(target, prop, receiver);
 			}
 		},
-		ownKeys(target) {
-			return Reflect.ownKeys(getObjects((doc) => doc.name === name).at(0) || {});
+		ownKeys(target: any) {
+			console.log('collection createDocumentHandler *ownKeys*');
+			return Reflect.ownKeys(collection.filter((doc) => doc.name === name).at(0) || {});
 		},
-		getOwnPropertyDescriptor(target, prop) {
-			const latestData = getObjects((doc) => doc.name === name).at(0) || {};
+		getOwnPropertyDescriptor(target: any, prop: any) {
+			const latestData = collection.filter((doc) => doc.name === name).at(0) || {};
 			if (prop in latestData) {
 				return {
 					value: latestData[prop],
@@ -94,33 +112,6 @@ const createDocumentHandler = (name: string) => {
 		}
 	};
 };
-// const documentHandler = {
-// 	get(target: any, prop: any, receiver: any): any {
-
-// 		switch (prop) {
-// 			/**
-// 			 * We only need to proxy update, replace and delete because they don't exist on the Document. In a 2nd step we MAYBE need to proxy also the Document References to return the document from the store instead of the function itself.
-// 			 */
-// 			case 'update':
-// 				return (doc: NamedDocument_Update<Collection_Update>): void => {
-// 					console.log('update target', target.name);
-// 					return updateObject(target.name, doc);
-// 				};
-// 			case 'replace':
-// 				return (doc: NamedDocument_Replace<Collection_Replace>): void => {
-// 					console.log('replace target', target.name);
-// 					return replaceObject(target.name, doc);
-// 				};
-// 			case 'delete':
-// 				return () => {
-// 					console.log('delete target', target.name);
-// 					deleteObject(target.name);
-// 				};
-// 			default:
-// 				return Reflect.get(target, prop, receiver);
-// 		}
-// 	}
-// };
 
 let collection = $state<NamedFunctions<Collection, Collection_Replace, Collection_Update>[]>([]);
 
@@ -128,14 +119,8 @@ const toLocalStorage = () => {
 	storage.set(COLL_NAME, collection);
 };
 
-const getObjects = (
-	filter: Predicate<NamedDocument<Collection>>
-): NamedFunctions<Collection, Collection_Replace, Collection_Update>[] => {
-	return collection.filter(filter);
-};
-
 const updateObject = (name: string, fields: NamedDocument_Update<Collection_Update>) => {
-	const doc = collection.find((doc) => $state.is(doc.name, name));
+	const doc = collection.find((doc) => doc.name == name);
 	if (doc) {
 		Object.assign(doc, fields);
 		toLocalStorage();
@@ -143,7 +128,7 @@ const updateObject = (name: string, fields: NamedDocument_Update<Collection_Upda
 };
 
 const replaceObject = (name: string, fields: NamedDocument_Replace<Collection_Replace>) => {
-	const index = collection.findIndex((doc) => $state.is(doc.name, name));
+	const index = collection.findIndex((doc) => doc.name == name);
 	if (index !== -1) {
 		Object.assign(collection[index], fields);
 		Object.keys(collection[index]).forEach((key) => {
@@ -158,7 +143,7 @@ const replaceObject = (name: string, fields: NamedDocument_Replace<Collection_Re
 };
 
 const deleteObject = (name: string) => {
-	const index = collection.findIndex((doc) => $state.is(doc.name, name));
+	const index = collection.findIndex((doc) => doc.name == name);
 	if (index !== -1) {
 		collection.splice(index, 1);
 		toLocalStorage();
@@ -168,106 +153,65 @@ const deleteObject = (name: string) => {
 const upsertObjectFromClient = (
 	clientDoc: NamedDocument_Create<Collection_Create>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
-	const index = collection.findIndex((doc) => $state.is(doc.name, clientDoc.name));
-	const newDoc = new Proxy(
-		{
-			...clientDoc,
-			ts: TimeStub.fromDate(new Date()),
-			coll: new Module(COLL_NAME)
-		} as NamedFunctions<Collection, Collection_Replace, Collection_Update>,
-		createDocumentHandler
-	);
+	const index = collection.findIndex((doc) => doc.name == clientDoc.name);
+
+	const docData = {
+		...clientDoc,
+		ts: TimeStub.fromDate(new Date()),
+		coll: new Module(COLL_NAME)
+	} as NamedFunctions<Collection, Collection_Replace, Collection_Update>;
 
 	if (index > -1) {
-		if (!isEqual(collection[index], newDoc)) {
-			collection[index] = newDoc;
+		if (!isEqual(collection[index], docData)) {
+			collection[index] = docData;
 		}
 	} else {
-		collection.push(newDoc);
+		collection.push(docData);
 	}
 	toLocalStorage();
 
-	return newDoc;
+	return documentHandlerMemoizedByName(docData.name);
 };
-
-// TODO: REMOVE AFTER TESTING
-// upsertObjectFromClient({
-// 	name: 'User',
-// 	fields: {
-// 		firstName: {
-// 			signature: 'String'
-// 		},
-// 		lastName: {
-// 			signature: 'String'
-// 		},
-// 		birthdate: {
-// 			signature: 'Date'
-// 		},
-// 		account: {
-// 			signature: 'Array<Ref<Account>>?'
-// 		}
-// 	},
-// 	computed_fields: {
-// 		age: {
-// 			body: '(doc) => (Date.today().difference(doc.birthdate) / 365)',
-// 			signature: 'Number'
-// 		}
-// 	}
-// });
-
-// upsertObjectFromClient({
-// 	name: 'Account',
-// 	fields: {
-// 		user: {
-// 			signature: 'Ref<User>'
-// 		},
-// 		provider: {
-// 			signature: 'String'
-// 		},
-// 		providerUserId: {
-// 			signature: 'String'
-// 		}
-// 	}
-// });
 
 const upsertObjectFromStorage = (
 	storageDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
-	console.log('\nupsertObjectFromStorage - collection.svelte.ts\n', storageDoc);
-	const index = collection.findIndex((u) => $state.is(u.name, storageDoc.name));
-	const newDoc = new Proxy(storageDoc, createDocumentHandler);
+	console.log('collection.svelte.ts | upsertObjectFromStorage', storageDoc);
+	const index = collection.findIndex((u) => u.name == storageDoc.name);
+
 	if (index > -1) {
-		if (!isEqual(collection[index], newDoc)) {
-			collection[index] = newDoc;
+		if (!isEqual(collection[index], storageDoc)) {
+			collection[index] = storageDoc;
 		}
 	} else {
-		collection.push(newDoc);
+		collection.push(storageDoc);
 	}
 
-	return newDoc;
+	return documentHandlerMemoizedByName(storageDoc.name);
 };
 
 const upsertObjectFromFauna = (
 	faunaDoc: NamedFunctions<Collection, Collection_Replace, Collection_Update>
 ): NamedFunctions<Collection, Collection_Replace, Collection_Update> => {
-	const index = collection.findIndex((u) => $state.is(u.name, faunaDoc.name));
-	const newDoc = new Proxy(faunaDoc, createDocumentHandler);
+	console.log('collection.svelte | upsertObjectFromFauna');
+
+	const index = collection.findIndex((u) => u.name == faunaDoc.name);
+
 	if (index > -1) {
-		// console.log('\nupsertObjectFromFauna - collection.svelte.ts\n', faunaDoc);
-		if (!isEqual(collection[index], newDoc)) {
-			collection[index] = newDoc;
+		if (!isEqual(collection[index], faunaDoc)) {
+			collection[index] = faunaDoc;
 		}
 	} else {
-		collection.push(newDoc);
+		collection.push(faunaDoc);
 	}
 
 	toLocalStorage();
 
-	return newDoc;
+	return documentHandlerMemoizedByName(faunaDoc.name);
 };
 
 const fromLocalStorage = () => {
-	console.log('\nfromLocalStorage - collection.svelte.ts L203\n');
+	console.log('collection.svelte.ts L226 | fromLocalStorage');
 	const parsedDocuments =
 		storage.get<NamedFunctions<Collection, Collection_Replace, Collection_Update>>(COLL_NAME);
 	console.log(parsedDocuments);
@@ -279,16 +223,17 @@ const fromLocalStorage = () => {
 };
 
 export const createCollectionStore = (client: Client): CreateCollectionStore => {
-	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna);
+	const db = createDatabaseApi(client, 'Collection', upsertObjectFromFauna, deleteObject);
 
 	const storeHandler = {
 		get(target: any, prop: any, receiver: any): any {
 			switch (prop) {
 				case 'byName':
 					return (name: string) => {
-						console.log('Collection.byName:', name, '| collection.svelte.ts L282');
-						return new Proxy({}, createDocumentHandler(name));
-						// return getObjects((doc) => doc.name === name).at(0);
+						console.log('collection.svelte.ts L245 | Collection.byName:', name);
+						// return new Proxy({}, createDocumentHandler(name));
+						db.byName(name);
+						return documentHandlerMemoizedByName(name);
 					};
 
 				case 'first':
@@ -312,7 +257,7 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 
 				case 'where':
 					return (filter: Predicate<NamedDocument<Collection>>) => {
-						const result = new PageInternal(getObjects(filter), undefined);
+						const result = new PageInternal(collection.filter(filter), undefined);
 						// fetchWhereFromDB(result);
 						return new Proxy(result, pageHandler);
 					};
@@ -337,8 +282,8 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 				case 'after':
 					return target.after;
 				case 'order':
-					return (...orderings: Ordering<NamedDocument<Collection>>[]) => {
-						target.order(...orderings); // Use the Page class's order method
+					return (...orderList: OrderList<NamedDocument<Collection>>[]) => {
+						target.order(...orderList); // Use the Page class's order method
 						return new Proxy(target, pageHandler); // Return a proxy to allow chaining
 					};
 				default:
@@ -348,5 +293,5 @@ export const createCollectionStore = (client: Client): CreateCollectionStore => 
 	};
 
 	fromLocalStorage();
-	return new Proxy(collection, storeHandler);
+	return new Proxy({}, storeHandler);
 };

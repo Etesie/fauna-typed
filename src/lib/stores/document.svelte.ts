@@ -1,5 +1,5 @@
 import { type QueryValueObject, Client } from 'fauna';
-import type { Ordering } from './_shared/order';
+import type { OrderList } from './_shared/order';
 import { redo, undo } from './_shared/history';
 import {
 	type Predicate,
@@ -70,7 +70,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	const upsertObjectFromClient = (
 		doc: Document_Create<CreateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const index = current.findIndex((u) => u.id == doc.id);
 
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
 			docCreateToDoc(doc, definition, s),
@@ -94,7 +94,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	const upsertObjectFromStorage = (
 		doc: Functions<MainType, ReplaceType, UpdateType>
 	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, doc.id));
+		const index = current.findIndex((u) => u.id == doc.id);
 		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
@@ -113,7 +113,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		doc: Functions<MainType, ReplaceType, UpdateType>,
 		tempDocId?: string
 	): Functions<MainType, ReplaceType, UpdateType> => {
-		const index = current.findIndex((u) => $state.is(u.id, tempDocId || doc.id));
+		const index = current.findIndex((u) => u.id == tempDocId || doc.id);
 		const newDoc = new Proxy(doc, documentHandler);
 
 		if (index > -1) {
@@ -129,9 +129,39 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 		return newDoc;
 	};
 
-	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna);
+	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
+		const doc = current.find((u) => u.id == id);
+		if (doc) {
+			addToPast();
+			const converted = docUpdateToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
+			toLocalStorage();
+
+			return doc;
+		}
+	};
+
+	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
+		const doc = current.find((u) => u.id == id);
+		if (doc) {
+			addToPast();
+			const converted = docReplaceToDoc(doc, fields, definition, s);
+			Object.assign(doc, converted);
+			toLocalStorage();
+		}
+	};
+
+	const deleteObject = (id: string) => {
+		const index = current.findIndex((u) => u.id == id);
+		if (index !== -1) {
+			addToPast();
+			current.splice(index, 1);
+			toLocalStorage();
+		}
+	};
+
+	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
 	const Collection = createCollectionStore(client);
-	console.log('Collection | document.svelte.ts L130', Collection);
 
 	s = documentStores;
 
@@ -162,7 +192,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 			switch (prop) {
 				case 'byId':
 					return (...args: string[]) => {
-						return getObjects((doc) => doc.id === args[0]).at(0);
+						return current.filter((doc) => doc.id === args[0]).at(0);
 					};
 
 				case 'first':
@@ -199,7 +229,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 				case 'where':
 					return (filter: Predicate<Document<MainType>>) => {
-						const result = new PageInternal(getObjects(filter), undefined);
+						const result = new PageInternal(current.filter(filter), undefined);
 						db.where(filter);
 						return new Proxy(result as unknown as PageInternal<Document<MainType>>, pageHandler);
 					};
@@ -207,7 +237,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'firstWhere':
 					return (filter: Predicate<Document<MainType>>) => {
 						db.firstWhere(filter);
-						return getObjects(filter).at(0);
+						return current.filter(filter).at(0);
 					};
 
 				case 'create':
@@ -221,7 +251,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					console.log('\ndefinition (document.svelte.ts L198):\n', definition);
 					return definition;
 
 				/*************
@@ -318,7 +347,7 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 					return null;
 				}
 				case 'order':
-					return (...orderings: Ordering<Document<MainType>>[]) => {
+					return (...orderings: OrderList<Document<MainType>>[]) => {
 						const page = new PageInternal<Document<MainType>>([]);
 						const sortedData = page.order([...(target.data || [])], ...orderings); // Use the Page class's order method
 
@@ -359,43 +388,6 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 				default:
 					return Reflect.get(target, prop, receiver);
 			}
-		}
-	};
-
-	const getObjects = (
-		filter: Predicate<Document<MainType>>
-	): Functions<MainType, ReplaceType, UpdateType>[] => {
-		return current.filter(filter);
-	};
-
-	const updateObject = (id: string, fields: Document_Update<UpdateType>) => {
-		const doc = current.find((u) => $state.is(u.id, id));
-		if (doc) {
-			addToPast();
-			const converted = docUpdateToDoc(doc, fields, definition, s);
-			Object.assign(doc, converted);
-			toLocalStorage();
-
-			return doc;
-		}
-	};
-
-	const replaceObject = (id: string, fields: Document_Replace<ReplaceType>) => {
-		const doc = current.find((u) => $state.is(u.id, id));
-		if (doc) {
-			addToPast();
-			const converted = docReplaceToDoc(doc, fields, definition, s);
-			Object.assign(doc, converted);
-			toLocalStorage();
-		}
-	};
-
-	const deleteObject = (id: string) => {
-		const index = current.findIndex((u) => $state.is(u.id, id));
-		if (index !== -1) {
-			addToPast();
-			current.splice(index, 1);
-			toLocalStorage();
 		}
 	};
 

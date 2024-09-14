@@ -1,5 +1,5 @@
 import type { TypeMapping } from '$fauna-typed/types';
-import type { Ordering } from '$lib/stores/_shared/order';
+import type { OrderList } from '$lib/stores/_shared/order';
 import type { createDocumentStore } from '$lib/stores/document.svelte';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
@@ -98,15 +98,15 @@ class PageInternal<T extends QueryValueObject> {
 	}
 
 	/**
-	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
-	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
+	 * Sorts the `Page` data according to the specified order. The first entry in the `orderList` has the highest sorting priority, with priority decreasing with each following entry.
+	 * @param orderList - A list of order functions, created by `asc` or `desc`.
 	 * @example
 	 * import { asc, desc } from 'fauna-typed/stores';
 	 * User.all().order([{firstName: "John", lastName: "Doe"}], asc((u) => u.firstName), desc((u) => u.lastName)))
 	 */
-	order(data: T[], ...orderings: Ordering<T>[]): T[] {
+	order(data: T[], ...orderList: OrderList<T>[]): T[] {
 		data?.sort?.((a: T, b: T) => {
-			for (const ordering of orderings) {
+			for (const ordering of orderList) {
 				const result = ordering(a, b);
 				if (result !== 0) return result;
 			}
@@ -126,7 +126,7 @@ type Page<T extends QueryValueObject> = {
 	 * import { asc, desc } from 'fauna-typed/stores';
 	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
 	 */
-	order: (...ordering: Ordering<T>[]) => Page<T>;
+	order: (...ordering: OrderList<T>[]) => Page<T>;
 };
 
 type Field = {

@@ -13,6 +13,8 @@ import type {
 import { Client, fql, type QueryValueObject } from 'fauna';
 
 export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
+	byId: (id: string) => Promise<Document<T>>;
+	byName: (name: string) => Promise<Document<T>>;
 	all: () => Promise<string | undefined>;
 	paginate: (after: string) => Promise<PageInternal<Document<T>> | undefined>;
 	where: (filter: Predicate<Document<T>>) => Promise<void>;
@@ -49,7 +51,8 @@ export const createDatabaseApi = <
 >(
 	client: Client,
 	COLL_NAME: string,
-	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>, tempDocId?: string) => void
+	upsertObjectFromFauna: (doc: Functions<T, T_Replace, T_Update>, tempDocId?: string) => void,
+	deleteObject: (id: string) => void
 ): CreateDatabaseApi<T, K> => {
 	async function all() {
 		try {
@@ -83,6 +86,47 @@ export const createDatabaseApi = <
 		} catch (error) {
 			console.error('Error fetching document from database:', error);
 			return undefined;
+		}
+	}
+
+	async function byId(id: string) {
+		try {
+			const query = `${COLL_NAME}.byId("${id}")`;
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+
+			if (response.data) {
+				// Find the data in the store and delete it, If it doesn't exist in Fauna
+				if (response.data?.cause === 'not found') {
+					deleteObject(id);
+					return;
+				}
+
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using byId:', error);
+		}
+	}
+
+	async function byName(name: string) {
+		console.log('fauna.ts | byName: ', name);
+		try {
+			const query = `${COLL_NAME}.byName("${name}")`;
+			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+
+			if (response.data) {
+				// Find the data in the store and delete it, If it doesn't exist in Fauna
+				if (response.data?.cause === 'not found') {
+					deleteObject(name);
+					return;
+				}
+
+				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
+				upsertObjectFromFauna(response.data);
+			}
+		} catch (error) {
+			console.error('Error fetching document from database using byName:', error);
 		}
 	}
 
@@ -202,6 +246,8 @@ export const createDatabaseApi = <
 	return {
 		all,
 		paginate,
+		byId,
+		byName,
 		where,
 		first,
 		firstWhere,

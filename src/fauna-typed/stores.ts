@@ -12,7 +12,7 @@ const stores = {
 	Consequence: createDocumentStore('Consequence', documentStores, client),
 	MasterChapter: createDocumentStore('MasterChapter', documentStores, client),
 	MasterQuestion: createDocumentStore('MasterQuestion', documentStores, client),
-	MasterAnswer: createDocumentStore('MasterAnswer', documentStores, client),
+	MasterAnswer: createDocumentStore('MasterAnswer', documentStores, client)
 };
 
 Object.assign(documentStores, stores);
