@@ -4,8 +4,8 @@
 
 - Collection
   - Static Methods
-    - all() ❌
-    - byName() ❌
+    - all() ✅
+    - byName() ✅
     - create() ❌
     - firstWhere() ❌
     - toString() ❌
@@ -33,10 +33,32 @@
   - update() ✅
   - updateData() ❌
 - Function ❌
+  - Static Methods
+    - all() ✅
+    - byName() ✅
+    - create() ❌
+    - firstWhere() ❌
+    - toString() ❌
+    - where() ❌
 - Key ❌
 - Math ❌
 - Object ❌
 - Role ❌
+  - Static Methods
+    - all() ✅
+    - byName() ✅
+    - create() ❌
+    - firstWhere() ❌
+    - toString() ❌
+    - where() ❌
+- AccessProvider
+  - Static Methods
+    - all() ✅
+    - byName() ✅
+    - create() ❌
+    - firstWhere() ❌
+    - toString() ❌
+    - where() ❌
 - Set ❌
 - String ❌
 - Time ❌
@@ -44,15 +66,14 @@
 - TransactionTime ❌
 - Global functions ❌
 
-2. Lazy Store (Get the results from the store synchronous and the client fetches asynchronous the up to date data from the database and updates the store. (Same with create, update, and delete))
-3. Undo & Redo (Full-Store -> Bad performance)
-
-TODO:
-
-- Connected stores (e.g. User with Account)
-- Auto-Generated Types
-- Database Integration
-- Streaming
-- Auto-Generate Run-time validator
-- Undo & Redo (Storing only the diff between changes)
-- Cross-Store Undo & Redo
+2. Lazy Store (Get the results from the store synchronous and the client fetches asynchronous the up to date data from the database and updates the store. (Same with create, update, and delete)) ✅
+3. Undo & Redo (Full-Store -> Bad performance) ✅
+4. Connected stores (e.g. User with Account) ✅
+5. Auto-Generated Types ✅
+6. Promises
+7. Cache Revalidating
+8. Database Integration
+9. Streaming
+10. Auto-Generate Run-time validator
+11. Undo & Redo (Storing only the diff between changes)
+12. Cross-Store Undo & Redo
