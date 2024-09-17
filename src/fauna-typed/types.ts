@@ -146,7 +146,23 @@ type MasterAnswer_FaunaCreate = {
 type MasterAnswer_FaunaReplace = MasterAnswer_FaunaCreate;
 type MasterAnswer_FaunaUpdate = Partial<MasterAnswer_FaunaCreate>;
 
-interface TypeMapping {
+type Test = {
+	list: "No1" | "No2" | "No3";
+};
+
+type Test_Create = {
+	list: "No1" | "No2" | "No3";
+};
+type Test_Replace = Test_Create;
+type Test_Update = Partial<Test_Create>;
+
+type Test_FaunaCreate = {
+	list: "No1" | "No2" | "No3";
+};
+type Test_FaunaReplace = Test_FaunaCreate;
+type Test_FaunaUpdate = Partial<Test_FaunaCreate>;
+
+interface UserCollectionsTypeMapping {
 	Event: {
 		main: Event;
 		create: Event_Create;
@@ -176,6 +192,12 @@ interface TypeMapping {
 		create: MasterAnswer_Create;
 		replace: MasterAnswer_Replace;
 		update: MasterAnswer_Update;
+	};
+	Test: {
+		main: Test;
+		create: Test_Create;
+		replace: Test_Replace;
+		update: Test_Update;
 	};
 }
 
@@ -215,5 +237,12 @@ export type {
 	MasterAnswer_FaunaCreate,
 	MasterAnswer_FaunaUpdate,
 	MasterAnswer_FaunaReplace,
-	TypeMapping
+	Test,
+	Test_Create,
+	Test_Update,
+	Test_Replace,
+	Test_FaunaCreate,
+	Test_FaunaUpdate,
+	Test_FaunaReplace,
+	UserCollectionsTypeMapping
 };

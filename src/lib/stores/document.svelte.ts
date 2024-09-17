@@ -8,20 +8,20 @@ import {
 	type Document_Create,
 	type Document_Replace,
 	type Document_Update,
-	type DocumentStores,
+	type Stores,
 	type Collection,
 	type NamedDocument,
 	type Page,
 	PageInternal
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
-import { createCollectionStore } from './collection.svelte';
-import type { TypeMapping } from '$fauna-typed/types';
+import { createSystemCollectionStore } from './system-collection.svelte';
+import type { UserCollectionsTypeMapping } from '$fauna-typed/types';
 import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
-let s: DocumentStores = $state({});
+let s: Stores = $state({});
 const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
@@ -50,21 +50,21 @@ export type CreateDocumentStore<
 	destroy: () => void;
 };
 
-export const createDocumentStore = <K extends keyof TypeMapping>(
+export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 	collectionName: K,
-	documentStores: DocumentStores,
+	documentStores: Stores,
 	client: Client
 ): CreateDocumentStore<
-	TypeMapping[K]['main'],
-	TypeMapping[K]['create'],
-	TypeMapping[K]['replace'],
-	TypeMapping[K]['update']
+	UserCollectionsTypeMapping[K]['main'],
+	UserCollectionsTypeMapping[K]['create'],
+	UserCollectionsTypeMapping[K]['replace'],
+	UserCollectionsTypeMapping[K]['update']
 > => {
 	type EnforceQueryValueObjectExtension<T> = T extends QueryValueObject ? T : never;
-	type MainType = EnforceQueryValueObjectExtension<TypeMapping[K]['main']>;
-	type CreateType = EnforceQueryValueObjectExtension<TypeMapping[K]['create']>;
-	type ReplaceType = EnforceQueryValueObjectExtension<TypeMapping[K]['replace']>;
-	type UpdateType = EnforceQueryValueObjectExtension<TypeMapping[K]['update']>;
+	type MainType = EnforceQueryValueObjectExtension<UserCollectionsTypeMapping[K]['main']>;
+	type CreateType = EnforceQueryValueObjectExtension<UserCollectionsTypeMapping[K]['create']>;
+	type ReplaceType = EnforceQueryValueObjectExtension<UserCollectionsTypeMapping[K]['replace']>;
+	type UpdateType = EnforceQueryValueObjectExtension<UserCollectionsTypeMapping[K]['update']>;
 	const COLL_NAME: string = collectionName;
 
 	const upsertObjectFromClient = (
@@ -161,11 +161,11 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 	};
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
-	const Collection = createCollectionStore(client);
 
 	s = documentStores;
+	console.log('document.svelte.ts | documentStores: ', s);
 
-	const definition = Collection.byName(COLL_NAME);
+	const definition = s.Collection.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -418,9 +418,9 @@ export const createDocumentStore = <K extends keyof TypeMapping>(
 
 	fromLocalStorage();
 	return new Proxy({}, createStoreHandler) as unknown as CreateDocumentStore<
-		TypeMapping[K]['main'],
-		TypeMapping[K]['create'],
-		TypeMapping[K]['replace'],
-		TypeMapping[K]['update']
+		UserCollectionsTypeMapping[K]['main'],
+		UserCollectionsTypeMapping[K]['create'],
+		UserCollectionsTypeMapping[K]['replace'],
+		UserCollectionsTypeMapping[K]['update']
 	>;
 };

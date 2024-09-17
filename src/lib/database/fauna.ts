@@ -1,4 +1,4 @@
-import type { TypeMapping } from '$fauna-typed/types';
+import type { UserCollectionsTypeMapping } from '$fauna-typed/types';
 import { docToFaunaDoc, docToFaunaReplaceDoc, docToFaunaUpdateDoc } from '$lib/types/converters';
 import type {
 	Functions,
@@ -12,7 +12,10 @@ import type {
 } from '$lib/types/types';
 import { Client, fql, type QueryValueObject } from 'fauna';
 
-export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMapping> = {
+export type CreateDatabaseApi<
+	T extends QueryValueObject,
+	K extends keyof UserCollectionsTypeMapping
+> = {
 	byId: (id: string) => Promise<Document<T>>;
 	byName: (name: string) => Promise<Document<T>>;
 	all: () => Promise<string | undefined>;
@@ -22,17 +25,17 @@ export type CreateDatabaseApi<T extends QueryValueObject, K extends keyof TypeMa
 	firstWhere: (filter: Predicate<Document<T>>) => Promise<void>;
 	last: () => Promise<void>;
 	create: (
-		document: Document_Create<TypeMapping[K]['create']>,
+		document: Document_Create<UserCollectionsTypeMapping[K]['create']>,
 		collection: Collection
 	) => Promise<void>;
 	update: (
 		id: string,
-		fields: Document_Update<TypeMapping[K]['update']>,
+		fields: Document_Update<UserCollectionsTypeMapping[K]['update']>,
 		collection: Collection
 	) => Promise<void>;
 	replace: (
 		id: string,
-		fields: Document_Replace<TypeMapping[K]['replace']>,
+		fields: Document_Replace<UserCollectionsTypeMapping[K]['replace']>,
 		collection: Collection
 	) => Promise<void>;
 };
@@ -47,7 +50,7 @@ export const createDatabaseApi = <
 	T extends QueryValueObject,
 	T_Replace extends QueryValueObject,
 	T_Update extends QueryValueObject,
-	K extends keyof TypeMapping
+	K extends keyof UserCollectionsTypeMapping
 >(
 	client: Client,
 	COLL_NAME: string,
@@ -191,13 +194,14 @@ export const createDatabaseApi = <
 	}
 
 	async function create(
-		document: Document_Create<TypeMapping[K]['create']>,
+		document: Document_Create<UserCollectionsTypeMapping[K]['create']>,
 		collection: Collection
 	) {
 		try {
 			const query = `${COLL_NAME}.create(${docToFaunaDoc(document, collection)})`;
 
 			const response = await client.query<Functions<T, T_Replace, T_Update>>(fql([query]));
+
 			if (response.data) {
 				// Find the data in the store and replace it with the new data. If it doesn't exist, add it.
 				upsertObjectFromFauna(response.data, document.id);
@@ -209,7 +213,7 @@ export const createDatabaseApi = <
 
 	async function update(
 		id: string,
-		fields: Document_Update<TypeMapping[K]['update']>,
+		fields: Document_Update<UserCollectionsTypeMapping[K]['update']>,
 		collection: Collection
 	) {
 		try {
@@ -227,7 +231,7 @@ export const createDatabaseApi = <
 
 	async function replace(
 		id: string,
-		fields: Document_Replace<TypeMapping[K]['replace']>,
+		fields: Document_Replace<UserCollectionsTypeMapping[K]['replace']>,
 		collection: Collection
 	) {
 		try {

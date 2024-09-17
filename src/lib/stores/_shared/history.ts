@@ -1,7 +1,7 @@
-import type { L_Document } from '$lib/fauna-typed/types/fauna';
+import type { QueryValueObject } from 'fauna';
 import diff from 'microdiff';
 
-type Sync<T extends L_Document> = {
+type Sync<T extends QueryValueObject> = {
 	data: T;
 	action: 'CREATE' | 'UPDATE' | 'REPLACE' | 'DELETE';
 };
@@ -11,7 +11,7 @@ type Sync<T extends L_Document> = {
  * @param current - The current state array containing objects that extend from S_Document.
  * @param database - The database state array containing objects that extend from S_Document.
  */
-export const calculateSyncData = <T extends L_Document>(
+export const calculateSyncData = <T extends QueryValueObject>(
 	current: T[],
 	database: T[],
 	syncData: Sync<T>[]
@@ -55,7 +55,7 @@ export const calculateSyncData = <T extends L_Document>(
  * @param {[T[]]} future - array of future states
  * @return {{ current: T[]; past: [T[]]; future: [T[]] } | undefined} the updated state or undefined
  */
-export const undo = <T extends L_Document>(
+export const undo = <T extends QueryValueObject>(
 	current: T[],
 	past: [T[]?],
 	future: [T[]?]
@@ -81,7 +81,7 @@ export const undo = <T extends L_Document>(
  * @param {[T[]]} past - The stack of past states.
  * @return {{ current: T[]; past: [T[]]; future: [T[]] } | undefined} - The updated state history if there is a future state, otherwise undefined.
  */
-export const redo = <T extends L_Document>(
+export const redo = <T extends QueryValueObject>(
 	current: T[],
 	past: [T[]?],
 	future: [T[]?]
