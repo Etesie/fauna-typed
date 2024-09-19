@@ -6,11 +6,16 @@ import { client } from './client';
 
 const sharedStores = {} as Stores;
 
+sharedStores.Collection = await createSystemCollectionStore('Collection', client);
+sharedStores.Role = await createSystemCollectionStore('Role', client);
+sharedStores.AccessProvider = await createSystemCollectionStore('AccessProvider', client);
+sharedStores.Function = await createSystemCollectionStore('Function', client);
+
 const stores = {
-	Collection: createSystemCollectionStore('Collection', client),
-	Role: createSystemCollectionStore('Role', client),
-	AccessProvider: createSystemCollectionStore('AccessProvider', client),
-	Function: createSystemCollectionStore('Function', client),
+	Collection: sharedStores.Collection,
+	Role: sharedStores.Role,
+	AccessProvider: sharedStores.AccessProvider,
+	Function: sharedStores.Function,
 	Event: createDocumentStore('Event', sharedStores, client),
 	Consequence: createDocumentStore('Consequence', sharedStores, client),
 	MasterChapter: createDocumentStore('MasterChapter', sharedStores, client),

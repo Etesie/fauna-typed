@@ -7,7 +7,7 @@ import { client } from '$fauna-typed/client';
 
 export const load = async () => {
 	if (NODE_ENV === 'development') {
-		const Collection = createSystemCollectionStore('Collection', client);
+		const Collection = await createSystemCollectionStore('Collection', client);
 		const schema = Collection.all().data;
 
 		let schemaValue;

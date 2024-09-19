@@ -257,7 +257,9 @@ type DocumentStores = {
 };
 
 type SystemStores = {
-	[K in keyof SystemCollectionsTypeMapping]: ReturnType<typeof createSystemCollectionStore<K>>;
+	[K in keyof SystemCollectionsTypeMapping]: Awaited<
+		ReturnType<typeof createSystemCollectionStore<K>>
+	>;
 };
 
 type Stores = DocumentStores & SystemStores;

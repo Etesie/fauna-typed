@@ -11,7 +11,8 @@ type GenerateStoresOptions = {
 };
 
 // TODO: How to get the client from fauna-typed? It's in the user scope
-const collections = $state(createSystemCollectionStore('Collection', client).all().data);
+const Collection = await createSystemCollectionStore('Collection', client);
+const collectionData = Collection.all().data;
 
 const defaultGenerateStoreOptions = {
 	generatedStoreDirPath: 'src/fauna-typed',
@@ -25,6 +26,11 @@ import type { Stores } from '$lib/types/types';
 import { client } from './client';
 
 const sharedStores = {} as Stores;
+
+sharedStores.Collection = await createSystemCollectionStore('Collection', client);
+sharedStores.Role = await createSystemCollectionStore('Role', client);
+sharedStores.AccessProvider = await createSystemCollectionStore('AccessProvider', client);
+sharedStores.Function = await createSystemCollectionStore('Function', client);
 
 storesObject
 
@@ -45,9 +51,9 @@ export const generateStores = (options?: GenerateStoresOptions) => {
 		options?.generatedStoreFileName || defaultGenerateStoreOptions.generatedStoreFileName;
 	const dir = `${process.cwd()}/`;
 	let documentStoreStr =
-		"const stores = {\n	Collection: createSystemCollectionStore('Collection', client),\n	Role: createSystemCollectionStore('Role', client),\n	AccessProvider: createSystemCollectionStore('AccessProvider', client),\n	Function: createSystemCollectionStore('Function', client),";
+		'const stores = {\n	Collection: sharedStores.Collection,\n	Role: sharedStores.Role,\n	AccessProvider: sharedStores.AccessProvider,\n	Function: sharedStores.Function,';
 
-	collections.forEach((collection) => {
+	collectionData.forEach((collection) => {
 		documentStoreStr += `\n\t${collection.name}: createDocumentStore('${collection.name}', sharedStores, client),`;
 	});
 

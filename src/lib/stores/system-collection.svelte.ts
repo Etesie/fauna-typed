@@ -31,14 +31,16 @@ type CreateSystemCollectionStore<
 	destroy: () => void;
 };
 
-export const createSystemCollectionStore = <K extends keyof SystemCollectionsTypeMapping>(
+export const createSystemCollectionStore = async <K extends keyof SystemCollectionsTypeMapping>(
 	collectionName: K,
 	client: Client
-): CreateSystemCollectionStore<
-	SystemCollectionsTypeMapping[K]['main'],
-	SystemCollectionsTypeMapping[K]['create'],
-	SystemCollectionsTypeMapping[K]['replace'],
-	SystemCollectionsTypeMapping[K]['update']
+): Promise<
+	CreateSystemCollectionStore<
+		SystemCollectionsTypeMapping[K]['main'],
+		SystemCollectionsTypeMapping[K]['create'],
+		SystemCollectionsTypeMapping[K]['replace'],
+		SystemCollectionsTypeMapping[K]['update']
+	>
 > => {
 	type EnforceQueryValueObjectExtension<T> = T extends QueryValueObject ? T : never;
 	type T = EnforceQueryValueObjectExtension<SystemCollectionsTypeMapping[K]['main']>;
@@ -48,7 +50,6 @@ export const createSystemCollectionStore = <K extends keyof SystemCollectionsTyp
 
 	console.log('system-collection.svelte.ts | collectionName: ', collectionName);
 	const COLL_NAME: string = collectionName;
-	console.log('system-collection.svelte.ts | COLL_NAME: ', COLL_NAME);
 
 	let systemCollection = $state<NamedFunctions<T, T_Replace, T_Update>[]>([]);
 
@@ -221,9 +222,11 @@ export const createSystemCollectionStore = <K extends keyof SystemCollectionsTyp
 	};
 
 	const fromLocalStorage = () => {
-		console.log('system-collection.svelte.ts L226 | fromLocalStorage');
 		const parsedDocuments = storage.get<NamedFunctions<T, T_Replace, T_Update>>(COLL_NAME);
-		console.log('system-collection.svelte.ts | parsedDocuments: ', parsedDocuments);
+		console.log(
+			'system-collection.svelte.ts | fromLocalStorage | parsedDocuments: ',
+			parsedDocuments
+		);
 		if (parsedDocuments) {
 			parsedDocuments.forEach((parsedDocument) => {
 				upsertObjectFromStorage(parsedDocument);
@@ -238,9 +241,8 @@ export const createSystemCollectionStore = <K extends keyof SystemCollectionsTyp
 			switch (prop) {
 				case 'byName':
 					return (name: string) => {
-						console.log('system-collection.svelte.ts | COLL_NAME: ', COLL_NAME);
-						console.log('system-collection.svelte.ts L245 | ', COLL_NAME, '.byName:', name);
-						// return new Proxy({}, createDocumentHandler(name));
+						console.log('system-collection.svelte.ts L241 | COLL_NAME: ', COLL_NAME);
+						console.log('system-collection.svelte.ts L242 | ', COLL_NAME, '.byName:', name);
 						db.byName(name);
 						return documentHandlerMemoizedByName(name);
 					};
@@ -257,6 +259,7 @@ export const createSystemCollectionStore = <K extends keyof SystemCollectionsTyp
 
 				case 'all':
 					return () => {
+						console.log('system-collection.svelte.ts | storeHandler | all');
 						const result = new PageInternal<NamedFunctions<T, T_Replace, T_Update>>(
 							systemCollection,
 							undefined

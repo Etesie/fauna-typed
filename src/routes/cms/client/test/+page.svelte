@@ -2,16 +2,15 @@
 	import type { PageData } from './$types';
 	import { s } from '$fauna-typed/stores';
 
-	// console.log(`client/test/+page.svelte `, s.MasterChapter.definition);
-	// console.log(s.Collection.all());
-	console.log(`cient/tables/+page.svelte MasterChapter.definition: `, s.MasterChapter.definition);
-	let data = s.MasterChapter.all().data;
-
 	// export let data: PageData;
 </script>
 
-<button>Hello {s.MasterChapter.definition}</button>
+<h1>Collection</h1>
+{#each s.Collection.all().data as item}
+	<div>{item.name}</div>
+{/each}
 
-{#each data as item}
+<h1>Functions</h1>
+{#each s.Function.all().data as item}
 	<div>{item.name}</div>
 {/each}

@@ -15,13 +15,11 @@ import {
 	PageInternal
 } from '$lib/types/types';
 import { storage } from './_shared/local-storage';
-import { createSystemCollectionStore } from './system-collection.svelte';
 import type { UserCollectionsTypeMapping } from '$fauna-typed/types';
 import { docCreateToDoc, docReplaceToDoc, docUpdateToDoc } from '$lib/types/converters';
 import { createDatabaseApi } from '$lib/database/fauna';
 import isEqual from 'lodash.isequal';
 
-let s: Stores = $state({});
 const DEFAULT_PAGE_SIZE = 16;
 
 export type CreateDocumentStore<
@@ -52,7 +50,7 @@ export type CreateDocumentStore<
 
 export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 	collectionName: K,
-	documentStores: Stores,
+	s: Stores,
 	client: Client
 ): CreateDocumentStore<
 	UserCollectionsTypeMapping[K]['main'],
@@ -73,7 +71,7 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 		const index = current.findIndex((u) => u.id == doc.id);
 
 		const newDoc: Functions<MainType, ReplaceType, UpdateType> = new Proxy(
-			docCreateToDoc(doc, definition, s),
+			docCreateToDoc(doc, s.Collection.byName(COLL_NAME), s),
 			documentHandler
 		);
 
@@ -133,7 +131,7 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 		const doc = current.find((u) => u.id == id);
 		if (doc) {
 			addToPast();
-			const converted = docUpdateToDoc(doc, fields, definition, s);
+			const converted = docUpdateToDoc(doc, fields, s.Collection.byName(COLL_NAME), s);
 			Object.assign(doc, converted);
 			toLocalStorage();
 
@@ -145,7 +143,7 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 		const doc = current.find((u) => u.id == id);
 		if (doc) {
 			addToPast();
-			const converted = docReplaceToDoc(doc, fields, definition, s);
+			const converted = docReplaceToDoc(doc, fields, s.Collection.byName(COLL_NAME), s);
 			Object.assign(doc, converted);
 			toLocalStorage();
 		}
@@ -162,10 +160,8 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 
 	const db = createDatabaseApi(client, COLL_NAME, upsertObjectFromFauna, deleteObject);
 
-	s = documentStores;
+	console.log('document.svelte.ts L165 | COLL_NAME', COLL_NAME);
 	console.log('document.svelte.ts | documentStores: ', s);
-
-	const definition = s.Collection.byName(COLL_NAME);
 
 	/**
 	 * Used to determine the current state of the store
@@ -243,7 +239,7 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 				case 'create':
 					return (document: Document_Create<CreateType>) => {
 						const optimisticResult = upsertObjectFromClient(document);
-						db.create({ ...document, id: optimisticResult.id }, definition);
+						db.create({ ...document, id: optimisticResult.id }, s.Collection.byName(COLL_NAME));
 
 						return optimisticResult;
 					};
@@ -251,7 +247,8 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 				case 'definition':
 					// TODO: Get definition from Fauna
 					// return new Proxy(s.Collection.byName(COLL_NAME), collectionHandler);
-					return definition;
+					console.log('document.svelte.ts | Collection: ', s.Collection);
+					return s.Collection.byName(COLL_NAME);
 
 				/*************
 				 * Undo/Redo
@@ -372,13 +369,13 @@ export const createDocumentStore = <K extends keyof UserCollectionsTypeMapping>(
 					return (doc: Document_Update<UpdateType>): void => {
 						console.log('update target', target.id);
 						updateObject(target.id, doc);
-						db.update(target.id, doc, definition);
+						db.update(target.id, doc, s.Collection.byName(COLL_NAME));
 					};
 				case 'replace':
 					return (doc: Document_Replace<ReplaceType>): void => {
 						console.log('replace target', target.id);
 						replaceObject(target.id, doc);
-						db.replace(target.id, doc, definition);
+						db.replace(target.id, doc, s.Collection.byName(COLL_NAME));
 					};
 				case 'delete':
 					return () => {
