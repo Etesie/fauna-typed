@@ -1,25 +1,17 @@
 # Fauna Typed
 
-
-
-
+![Fauna Typed](https://img.shields.io/npm/v/fauna-typed.svg?style=flat-square)
+![License](https://img.shields.io/npm/l/fauna-typed.svg?style=flat-square)
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
-- [Installation](#installation)
 - [Usage](#usage)
-  - [Basic Usage](#basic-usage)
-  - [Options](#options)
-  - [Examples](#examples)
-- [Generated Files](#generated-files)
-- [Using the Generated Types](#using-the-generated-types)
-  - [Fetch Multiple Documents from a User-Defined Collection](#fetch-multiple-documents-from-a-user-defined-collection)
-  - [Fetch One Document from a User-Defined Collection](#fetch-one-document-from-a-user-defined-collection)
-  - [Fetch One Document from a System-Defined Collection](#fetch-one-document-from-a-system-defined-collection)
-- [Development](#development)
-- [Contributing](#contributing)
+  - [Installation](#installation)
+  - [Types Generation](#types-generation)
+  - [Types Usage](#types-usage)
+- [Development and Contributing](#development-and-contributing)
 - [License](#license)
 
 ## Overview
@@ -32,41 +24,41 @@
 
 - **Seamless Integration:** Easily integrate the generated types into your existing TypeScript projects.
 
+## Usage
 
+### Installation
 
-## Installation
+You can install **Fauna Typed** as a development dependency with the package manager of your choice.
 
-You can install **Fauna Typed** as a development dependency using [pnpm](https://pnpm.io/), [npm](https://www.npmjs.com/), or [yarn](https://yarnpkg.com/).
-
-### Using pnpm
+#### Using pnpm
 
 ```bash
 pnpm add -D fauna-typed
 ```
 
-### Using npm
+#### Using npm
 
 ```bash
 npm install --save-dev fauna-typed
 ```
 
-### Using yarn
+#### Using yarn
 
 ```bash
 yarn add -D fauna-typed
 ```
 
-## Usage
+### Types Generation
 
 After installation, you can use the CLI to generate TypeScript types based on your Fauna database schema.
 
-### Basic Usage
+#### Basic Usage
 
 ```bash
 fauna-typed --secret=YOUR_FAUNA_ADMIN_KEY
 ```
 
-### Options
+#### Options
 
 - `-s, --secret <faunaSecret>`\
   **Description:** Fauna admin secret.\
@@ -79,9 +71,9 @@ fauna-typed --secret=YOUR_FAUNA_ADMIN_KEY
 - `-h, --help`\
   **Description:** Display help for the command.
 
-### Examples
+#### Examples
 
-#### Generate Types with Default Settings
+##### Generate Types with Default Settings
 
 ```bash
 fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY"
@@ -89,13 +81,13 @@ fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY"
 
 This command generates the TypeScript types in the default directory `src/fauna-typed`.
 
-#### Specify a Custom Output Directory
+##### Specify a Custom Output Directory
 
 ```bash
 fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY" --dir="path/to/custom-dir"
 ```
 
-#### Using Short Flags
+##### Using Short Flags
 
 ```bash
 fauna-typed -s "YOUR_FAUNA_ADMIN_KEY" -d "path/to/custom-dir"
@@ -103,7 +95,7 @@ fauna-typed -s "YOUR_FAUNA_ADMIN_KEY" -d "path/to/custom-dir"
 
 **Note:** When using short flags (`-s`), **do not** use an equal sign (`=`). Instead, separate the flag and its value with a space or no space.
 
-## Generated Files
+#### Generated Files
 
 Upon successful execution, the CLI generates two key files in your specified directory:
 
@@ -111,9 +103,9 @@ Upon successful execution, the CLI generates two key files in your specified dir
    Contains the TypeScript type definitions based on your Fauna schema.
 
 2. **`system.ts`**\
-   Contains the system type definitions like Collection, Role, AccessProvider, Function, etc. .
+   Contains the Fauna system type definitions like Collection, Role, AccessProvider, Function, etc.
 
-### Directory Structure Example
+##### Directory Structure Example
 
 ```
 your-project/
@@ -125,11 +117,11 @@ your-project/
 └── ...
 ```
 
-## Using the Generated Types
+### Types Usage
 
 The generated types provide seamless integration between your Fauna database and your TypeScript codebase.
 
-### Fetch Multiple Documents from a User-Defined Collection
+#### Fetch Multiple Documents from a User-Defined Collection
 
 Example: `User.all()`
 
@@ -149,7 +141,7 @@ const page = response.data; // type: Page<Document<User>>
 const data = page.data; // type: Array<Document<User>>
 ```
 
-### Fetch One Document from a User-Defined Collection
+#### Fetch One Document from a User-Defined Collection
 
 Example: `User.all().first()`
 
@@ -166,7 +158,7 @@ const response = await client.query<Document<User>>(fql`User.all().first()`); //
 const data = response.data; // type: Document<User>
 ```
 
-### Fetch One Document from a System-Defined Collection
+#### Fetch One Document from a System-Defined Collection
 
 Example: `Collection.all().first()`
 
@@ -182,7 +174,7 @@ const response = await client.query<NamedDocument<Collection>>(fql`Collection.al
 const data = response.data; // type: NamedDocument<Collection>
 ```
 
-## Development
+## Development and Contributing
 
 If you wish to contribute to **Fauna Typed** or customize it further, follow these steps:
 
@@ -218,9 +210,7 @@ If you wish to contribute to **Fauna Typed** or customize it further, follow the
    pnpm dev --secret="YOUR_FAUNA_ADMIN_KEY"
    ```
 
-## Contributing
-
-Contributions are welcome! Please follow these steps:
+### Contributing Steps
 
 1. **Fork the Repository**
 
