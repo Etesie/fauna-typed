@@ -10,7 +10,6 @@ type GenerateTypesOptions = {
   generatedTypesDirPath?: string;
 };
 
-// Default folder name if user doesn't specify one
 const defaultGenerateTypeOptions = {
   generatedTypesDirPath: "fauna-types",
 };
@@ -249,14 +248,28 @@ export const generateTypes = (
   // Write custom.ts
   const customFilePath = path.resolve(outputDir, customFileName);
   fs.writeFileSync(customFilePath, typesStr, { encoding: "utf-8" });
+  console.log(`custom.ts generated successfully at ${generatedTypesDirPath}`);
 
-  // Copy system-types.ts → system.ts
-  // Adjust this path if system-types.ts is located elsewhere.
-  // For example, if the file is in the same folder as this code, do:
-  const sourceSystemTypes = path.resolve(__dirname, "system-types.ts");
+  // Determine the source file to copy (system-types.ts or system-types.js)
+  const sourceSystemTypesTs = path.resolve(__dirname, "system-types.ts");
+  const sourceSystemTypesJs = path.resolve(__dirname, "system-types.js");
+  let sourceSystemTypes: string | null = null;
+
+  if (fs.existsSync(sourceSystemTypesTs)) {
+    sourceSystemTypes = sourceSystemTypesTs;
+  } else if (fs.existsSync(sourceSystemTypesJs)) {
+    sourceSystemTypes = sourceSystemTypesJs;
+  } else {
+    console.error(
+      `Neither system-types.ts nor system-types.js found in ${__dirname}. Please create an issue in GitHub.`
+    );
+    process.exit(1);
+  }
+
+  // Copy the appropriate system-types file as system.ts
   const destSystemTypes = path.resolve(outputDir, "system.ts");
-
   fs.copyFileSync(sourceSystemTypes, destSystemTypes);
+  console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
 
   return {
     message: `Types generated successfully! Files created:\n- ${customFileName}\n- system.ts`,
