@@ -1,4 +1,3 @@
-import type { SortFunction } from './sorting';
 import { Module, TimeStub, type QueryValueObject } from 'fauna';
 
 type Document<T extends QueryValueObject> = {
@@ -171,48 +170,10 @@ type NamedFunctions<
 	delete: () => void;
 } & NamedDocument<T>;
 
-class PageInternal<T extends QueryValueObject> {
-	data: T[];
-	after?: PageInternal<T>;
-	afterCursor?: string;
-
-	constructor(data: T[], after?: PageInternal<T>) {
-		this.data = data;
-		if (after) {
-			this.after = after;
-		}
-	}
-
-	/**
-	 * Sorts the `Page` data according to the specified order. The first entry in the `orderList` has the highest sorting priority, with priority decreasing with each following entry.
-	 * @param orderList - A list of order functions, created by `asc` or `desc`.
-	 * @example
-	 * import { asc, desc } from 'fauna-typed/stores';
-	 * User.all().order([{firstName: "John", lastName: "Doe"}], asc((u) => u.firstName), desc((u) => u.lastName)))
-	 */
-	order(data: T[], ...orderList: SortFunction<T>[]): T[] {
-		data?.sort?.((a: T, b: T) => {
-			for (const ordering of orderList) {
-				const result = ordering(a, b);
-				if (result !== 0) return result;
-			}
-			return 0;
-		});
-		return data;
-	}
-}
 
 type Page<T extends QueryValueObject> = {
 	data: T[];
-	after?: Page<T>;
-	/**
-	 * Sorts the Page data based on provided orderings. The first entry in the Ordering has the highest sorting priority, with priority decreasing with each following entry.
-	 * @param orderings - A list of ordering functions, created by `asc` or `desc`.
-	 * @example
-	 * import { asc, desc } from 'fauna-typed/stores';
-	 * User.all().order(asc((u) => u.firstName), desc((u) => u.lastName)))
-	 */
-	order: (...ordering: SortFunction<T>[]) => Page<T>;
+	after?: string;
 };
 
 type Field = {
@@ -309,6 +270,5 @@ export {
 	baseFields,
 	type Predicate,
 	type Page,
-	PageInternal,
 	type SystemCollectionsTypeMapping
 };

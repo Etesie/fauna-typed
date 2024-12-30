@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "pnpm build",
-    "dev": "ts-node src/cli/generate-fauna-types.ts --help"
+    "dev": "ts-node src/cli/generate-fauna-types.ts"
   },
   "keywords": [
     "fauna",

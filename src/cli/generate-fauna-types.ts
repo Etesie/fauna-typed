@@ -23,15 +23,13 @@ program
 	.description('Generate TypeScript types from Fauna schema.')
 	.option('-s, --secret <faunaSecret>', 'Fauna admin secret')
 	.option('-d, --dir <directory>', 'Directory to generate types file', 'src/fauna-typed')
-	.option('-f, --file <filename>', 'Name of the generated types file', 'types.ts')
 	.parse(process.argv);
 
 const options = program.opts();
 
 // Extract options with defaults
-const FAUNA_ADMIN_KEY = options.secret || options.s || process.env.FAUNA_ADMIN_KEY;
+const FAUNA_ADMIN_KEY = options.secret || process.env.FAUNA_ADMIN_KEY;
 const generatedTypesDirPath = options.dir;
-const generatedTypesFileName = options.file;
 
 if (!FAUNA_ADMIN_KEY) {
 	console.error(
@@ -61,13 +59,12 @@ async function main() {
 
 		// Generate the types with optional parameters
 		const result = generateTypes(collections, {
-			generatedTypesDirPath,
-			generatedTypesFileName
+			generatedTypesDirPath
 		});
 
 		const outputPath = path.resolve(
 			process.cwd(),
-			`${generatedTypesDirPath}/${generatedTypesFileName}`
+			`${generatedTypesDirPath}}`
 		);
 		console.log(result?.message || 'Type generation complete!');
 		console.log(`Type definitions generated at ${outputPath}`);
