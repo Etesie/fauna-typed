@@ -1,6 +1,6 @@
 {
   "name": "fauna-typed",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Generate TypeScript types from Fauna schema via CLI",
   "type": "commonjs",
   "main": "dist/cli/generate-fauna-types.js",
