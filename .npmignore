@@ -1,0 +1,5 @@
+# Don’t publish source TS or maps if you don’t want to
+src/
+*.ts
+*.map
+.env

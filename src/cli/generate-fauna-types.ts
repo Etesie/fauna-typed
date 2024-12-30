@@ -1,11 +1,9 @@
-#!/usr/bin/env ts-node
-
 /**
  * Usage:
- *   pnpm run fauna:generate
+ *   fauna-types --secret=YOUR_FAUNA_ADMIN_KEY
  *
  *   With optional parameters:
- *   pnpm run fauna:generate --secret=YOUR_FAUNA_ADMIN_KEY --dir=path/to/dir --file=customTypes.ts
+ *   fauna-types --secret=YOUR_FAUNA_ADMIN_KEY --dir=path/to/dir --file=customTypes.ts
  */
 
 import { Command } from 'commander';
@@ -13,7 +11,7 @@ import { generateTypes } from './typesGenerator';
 import dotenv from 'dotenv';
 import path from 'path';
 import { Client, fql } from 'fauna';
-import type { Collection, NamedDocument, Page } from './system';
+import type { Collection, NamedDocument, Page } from './system-types.ts';
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -31,7 +29,7 @@ program
 const options = program.opts();
 
 // Extract options with defaults
-const FAUNA_ADMIN_KEY = options.secret || process.env.FAUNA_ADMIN_KEY;
+const FAUNA_ADMIN_KEY = options.secret || options.s || process.env.FAUNA_ADMIN_KEY;
 const generatedTypesDirPath = options.dir;
 const generatedTypesFileName = options.file;
 
