@@ -261,7 +261,7 @@ export const generateTypes = (
     console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
     console.error(
-      `system-types.ts not found at ${sourceSystemTypesTs}. Make sure it's copied into dist/cli before running the generator.`
+      `system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue in the fauna-typed GitHub repository.`
     );
     process.exit(1);
   }

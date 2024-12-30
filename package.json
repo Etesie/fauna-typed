@@ -3,7 +3,11 @@
   "version": "0.3.0",
   "description": "Generate TypeScript types from Fauna schema via CLI",
   "type": "commonjs",
-  "main": "dist/index.js",
+  "main": "dist/cli/generate-fauna-types.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Etesie/fauna-typed.git"
+  },
   "bin": {
     "fauna-types": "dist/cli/generate-fauna-types.js"
   },

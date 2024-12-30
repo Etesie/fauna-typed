@@ -55,7 +55,7 @@ After installation, you can use the CLI to generate TypeScript types based on yo
 #### Basic Usage
 
 ```bash
-fauna-typed --secret=YOUR_FAUNA_ADMIN_KEY
+npx fauna-typed --secret=YOUR_FAUNA_ADMIN_KEY
 ```
 
 #### Options
@@ -76,7 +76,7 @@ fauna-typed --secret=YOUR_FAUNA_ADMIN_KEY
 ##### Generate Types with Default Settings
 
 ```bash
-fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY"
+npx fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY"
 ```
 
 This command generates the TypeScript types in the default directory `src/fauna-typed`.
@@ -84,13 +84,13 @@ This command generates the TypeScript types in the default directory `src/fauna-
 ##### Specify a Custom Output Directory
 
 ```bash
-fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY" --dir="path/to/custom-dir"
+npx fauna-typed --secret="YOUR_FAUNA_ADMIN_KEY" --dir="path/to/custom-dir"
 ```
 
 ##### Using Short Flags
 
 ```bash
-fauna-typed -s "YOUR_FAUNA_ADMIN_KEY" -d "path/to/custom-dir"
+npx fauna-typed -s "YOUR_FAUNA_ADMIN_KEY" -d "path/to/custom-dir"
 ```
 
 **Note:** When using short flags (`-s`), **do not** use an equal sign (`=`). Instead, separate the flag and its value with a space or no space.
