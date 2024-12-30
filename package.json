@@ -2,7 +2,7 @@
   "name": "fauna-types-cli",
   "version": "1.0.0",
   "description": "Generate TypeScript types from Fauna schema via CLI",
-  "type": "commonjs", 
+  "type": "commonjs",
   "main": "dist/index.js",
   "bin": {
     "fauna-types": "dist/cli/generate-fauna-types.js"
@@ -21,14 +21,13 @@
   "author": "Etesie",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.0.0",
-    "dotenv": "^16.3.1",
+    "commander": "^13.0.0",
+    "dotenv": "^16.4.7",
     "fauna": "^2.4.1"
   },
   "devDependencies": {
-    "@types/node": "^20.4.8",
-    "@types/commander": "^11.0.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.2.2"
+    "@types/node": "^22.10.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }
