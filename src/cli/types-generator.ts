@@ -114,7 +114,10 @@ const createType = (
     const isArray = checkDataType(value.signature, "Array<");
     const optionalMark = checkOptional(value.signature) ? "?" : "";
     const signature = isArray
-      ? `${extractDataTypeFromNonPrimitiveSignature("Array", value.signature)}${optionalMark}`
+      ? `${extractDataTypeFromNonPrimitiveSignature(
+          "Array",
+          value.signature
+        )}${optionalMark}`
       : value.signature;
 
     const keyWithOptionalMark = `${key}${optionalMark}`;
@@ -250,26 +253,18 @@ export const generateTypes = (
   fs.writeFileSync(customFilePath, typesStr, { encoding: "utf-8" });
   console.log(`custom.ts generated successfully at ${generatedTypesDirPath}`);
 
-  // Determine the source file to copy (system-types.ts or system-types.js)
   const sourceSystemTypesTs = path.resolve(__dirname, "system-types.ts");
-  const sourceSystemTypesJs = path.resolve(__dirname, "system-types.js");
-  let sourceSystemTypes: string | null = null;
+  const destSystemTypes = path.resolve(outputDir, "system.ts");
 
   if (fs.existsSync(sourceSystemTypesTs)) {
-    sourceSystemTypes = sourceSystemTypesTs;
-  } else if (fs.existsSync(sourceSystemTypesJs)) {
-    sourceSystemTypes = sourceSystemTypesJs;
+    fs.copyFileSync(sourceSystemTypesTs, destSystemTypes);
+    console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
     console.error(
-      `Neither system-types.ts nor system-types.js found in ${__dirname}. Please create an issue in GitHub.`
+      `system-types.ts not found at ${sourceSystemTypesTs}. Make sure it's copied into dist/cli before running the generator.`
     );
     process.exit(1);
   }
-
-  // Copy the appropriate system-types file as system.ts
-  const destSystemTypes = path.resolve(outputDir, "system.ts");
-  fs.copyFileSync(sourceSystemTypes, destSystemTypes);
-  console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
 
   return {
     message: `Types generated successfully! Files created:\n- ${customFileName}\n- system.ts`,

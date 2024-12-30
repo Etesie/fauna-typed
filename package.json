@@ -8,7 +8,7 @@
     "fauna-types": "dist/cli/generate-fauna-types.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node src/scripts/copy-system-types.js",
     "prepare": "pnpm build",
     "dev": "ts-node src/cli/generate-fauna-types.ts"
   },

@@ -9,7 +9,7 @@
  */
 
 import { Command } from 'commander';
-import { generateTypes } from './typesGenerator';
+import { generateTypes } from './types-generator';
 import dotenv from 'dotenv';
 import path from 'path';
 import { Client, fql } from 'fauna';
