@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { Fields, NamedDocument, Collection } from "./system-types";
+import { parseFaunaType } from "./parseFaunaType";
 
 type GenerateTypesOptions = {
   /**
@@ -108,40 +109,24 @@ const createType = (
   fields: Fields,
   typeSuffix: "_Create" | "_FaunaCreate" | "" = ""
 ) => {
+  // pick mode
+  let mode: "main" | "create" | "faunaCreate" = "main";
+  if (typeSuffix === "_Create") mode = "create";
+  if (typeSuffix === "_FaunaCreate") mode = "faunaCreate";
+
   let typeStr = `type ${name}${typeSuffix} = {\n`;
 
   Object.entries(fields).forEach(([key, value]) => {
-    const isArray = checkDataType(value.signature, "Array<");
-    const optionalMark = checkOptional(value.signature) ? "?" : "";
-    const signature = isArray
-      ? `${extractDataTypeFromNonPrimitiveSignature(
-          "Array",
-          value.signature
-        )}${optionalMark}`
-      : value.signature;
-
-    const keyWithOptionalMark = `${key}${optionalMark}`;
-
-    // In case of union types
-    const isUnionType = signature.includes("|");
-    if (isUnionType) {
-      const signatureTypes = signature.split("|");
-      const types = signatureTypes.map((type) =>
-        getFieldType(type.trim(), isArray, typeSuffix)
-      );
-
-      typeStr += `\t${keyWithOptionalMark}: ${types.join(" | ")};\n`;
-    } else {
-      typeStr += `\t${keyWithOptionalMark}: ${getFieldType(
-        signature,
-        isArray,
-        typeSuffix
-      )};\n`;
-    }
+    const isOptional = value.signature.endsWith("?");
+    const optionalMark = isOptional ? "?" : "";
+    // parseFaunaType with mode
+    const parsedType = parseFaunaType(value.signature, mode);
+    typeStr += `\t${key}${optionalMark}: ${parsedType};\n`;
   });
 
   return typeStr.concat("};");
 };
+
 
 export const generateTypes = (
   schema: NamedDocument<Collection>[],
