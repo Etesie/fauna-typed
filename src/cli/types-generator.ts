@@ -15,101 +15,16 @@ const defaultGenerateTypeOptions = {
   generatedTypesDirPath: "fauna-types",
 };
 
-// Function to check if value is optional
-const checkOptional = (value: string) => {
-  return value.endsWith("?");
-};
-
-// Function to check signature of given data type
-const checkDataType = (
-  value: string,
-  expectedType:
-    | "String"
-    | "Int"
-    | "Long"
-    | "Date"
-    | "Boolean"
-    | "Time"
-    | "Null"
-    | "Ref<"
-    | "Array<"
-) => {
-  return value.startsWith(expectedType);
-};
-
-// Function to extract collection name from a signature string
-const extractDataTypeFromNonPrimitiveSignature = (
-  signatureType: "Ref" | "Array",
-  signature: string
-) => {
-  const regex =
-    signatureType === "Ref"
-      ? /Ref<([^>]+)>/
-      : /Array<([^<>]*(?:<(?:[^<>]+|<(?:[^<>]+)>)*>[^<>]*)*)>/;
-
-  const match = signature.match(regex) as RegExpMatchArray;
-  return match[1];
-};
-
-const constructTypeValue = (value: string, isArray: boolean) => {
-  return isArray ? `Array<${value}>` : value;
-};
-
-const getFieldType = (
-  value: string,
-  isArray: boolean,
-  typeSuffix: "_Create" | "_FaunaCreate" | "" = ""
-) => {
-  switch (true) {
-    // String type
-    case checkDataType(value, "String"):
-      return constructTypeValue("string", isArray);
-
-    // Boolean type
-    case checkDataType(value, "Boolean"):
-      return constructTypeValue("boolean", isArray);
-
-    // Date type
-    case checkDataType(value, "Date"):
-      return constructTypeValue("DateStub", isArray);
-
-    // Long / Int type
-    case checkDataType(value, "Long"):
-    case checkDataType(value, "Int"):
-      return constructTypeValue("number", isArray);
-
-    // Null type
-    case checkDataType(value, "Null"):
-      return constructTypeValue("null", isArray);
-
-    // Time type
-    case checkDataType(value, "Time"):
-      return constructTypeValue("TimeStub", isArray);
-
-    // Reference type
-    case checkDataType(value, "Ref<"): {
-      const collName = extractDataTypeFromNonPrimitiveSignature("Ref", value);
-      const refType = typeSuffix
-        ? typeSuffix === "_Create"
-          ? `${collName} | DocumentReference`
-          : "DocumentReference"
-        : collName;
-      return constructTypeValue(refType, isArray);
-    }
-
-    default:
-      // Fallback for unknown/complex signatures
-      return constructTypeValue(value, isArray);
-  }
-};
-
-// Function to create a type string
+/**
+ * Create a TypeScript type definition for a given collection name and fields.
+ * If a field doesn't have a signature, it is skipped with a warning logged.
+ */
 const createType = (
   name: string,
   fields: Fields,
   typeSuffix: "_Create" | "_FaunaCreate" | "" = ""
 ) => {
-  // pick mode
+  // pick mode for parseFaunaType
   let mode: "main" | "create" | "faunaCreate" = "main";
   if (typeSuffix === "_Create") mode = "create";
   if (typeSuffix === "_FaunaCreate") mode = "faunaCreate";
@@ -117,16 +32,24 @@ const createType = (
   let typeStr = `type ${name}${typeSuffix} = {\n`;
 
   Object.entries(fields).forEach(([key, value]) => {
+    // If no signature, skip and warn
+    if (!value.signature) {
+      console.warn(
+        `Skipping field '${key}' in collection '${name}' because it has no signature.`
+      );
+      return; // Continue to next field
+    }
+
     const isOptional = value.signature.endsWith("?");
     const optionalMark = isOptional ? "?" : "";
-    // parseFaunaType with mode
+
+    // parseFaunaType with the selected mode
     const parsedType = parseFaunaType(value.signature, mode);
     typeStr += `\t${key}${optionalMark}: ${parsedType};\n`;
   });
 
   return typeStr.concat("};");
 };
-
 
 export const generateTypes = (
   schema: NamedDocument<Collection>[],
@@ -151,15 +74,16 @@ export const generateTypes = (
     .map(({ name, fields, computed_fields }) => {
       if (!fields) return;
 
-      let genericTypes = "";
-      if (computed_fields) {
-        const fieldsData = { ...fields, ...computed_fields };
-        genericTypes = createType(name, fieldsData);
-      } else {
-        genericTypes = createType(name, fields);
-      }
+      // Merge fields + computed fields
+      const fieldsData = computed_fields
+        ? { ...fields, ...computed_fields }
+        : fields;
 
-      // CRUD variants
+      // Main type includes both fields + computed fields
+      const genericTypes = createType(name, fieldsData);
+
+      // CRUD variants only need base fields (not computed)
+      // but you could also let them include computed fields if you like
       const crudTypeStr = createType(name, fields, "_Create");
       const faunaCrudTypeStr = createType(name, fields, "_FaunaCreate");
 
@@ -238,6 +162,7 @@ export const generateTypes = (
   fs.writeFileSync(customFilePath, typesStr, { encoding: "utf-8" });
   console.log(`custom.ts generated successfully at ${generatedTypesDirPath}`);
 
+  // Copy system-types.ts => system.ts
   const sourceSystemTypesTs = path.resolve(__dirname, "system-types.ts");
   const destSystemTypes = path.resolve(outputDir, "system.ts");
 
