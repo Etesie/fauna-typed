@@ -17,140 +17,107 @@ const defaultGenerateTypeOptions = {
 
 /**
  * Create a TypeScript type definition for a given collection name and fields.
- * If a field doesn't have a signature, it is skipped with a warning logged.
+ *
+ * @param name The name of the collection (e.g. "Account")
+ * @param fields The fields to be included in the generated type.
+ * @param suffix e.g. "_Create" or "" — appended to the type's name.
+ * @param mode "main" for domain references, "create" for DocumentReference
  */
 const createType = (
   name: string,
   fields: Fields,
-  typeSuffix: "_Create" | "_FaunaCreate" | "" = ""
+  suffix: string,
+  mode: "main" | "create"
 ) => {
-  // pick mode for parseFaunaType
-  let mode: "main" | "create" | "faunaCreate" = "main";
-  if (typeSuffix === "_Create") mode = "create";
-  if (typeSuffix === "_FaunaCreate") mode = "faunaCreate";
-
-  let typeStr = `type ${name}${typeSuffix} = {\n`;
+  let typeStr = `type ${name}${suffix} = {\n`;
 
   Object.entries(fields).forEach(([key, value]) => {
-    // If no signature, skip and warn
     if (!value.signature) {
       console.warn(
         `Skipping field '${key}' in collection '${name}' because it has no signature.`
       );
-      return; // Continue to next field
+      return;
     }
-
     const isOptional = value.signature.endsWith("?");
     const optionalMark = isOptional ? "?" : "";
 
-    // parseFaunaType with the selected mode
     const parsedType = parseFaunaType(value.signature, mode);
     typeStr += `\t${key}${optionalMark}: ${parsedType};\n`;
   });
 
-  return typeStr.concat("};");
+  return typeStr + "};";
 };
 
 export const generateTypes = (
   schema: NamedDocument<Collection>[],
   options?: GenerateTypesOptions
 ) => {
-  // Define final output folder
   const generatedTypesDirPath =
     options?.generatedTypesDirPath ||
     defaultGenerateTypeOptions.generatedTypesDirPath;
 
-  // We always generate "custom.ts" now
   const customFileName = "custom.ts";
-
-  // Root of user’s project
   const dir = process.cwd();
 
   let exportTypeStr = "export type {";
   let UserCollectionsTypeMappingStr = "interface UserCollectionsTypeMapping {";
 
-  // Create types with fields and computed fields
   const fieldTypes = schema
     .map(({ name, fields, computed_fields }) => {
-      if (!fields) return;
+      if (!fields) return null;
 
-      // Merge fields + computed fields
-      const fieldsData = computed_fields
-        ? { ...fields, ...computed_fields }
-        : fields;
+      // Combine normal fields + computed fields for the main type
+      const allFields = computed_fields ? { ...fields, ...computed_fields } : fields;
+      const mainTypeStr = createType(name, allFields, "", "main");
 
-      // Main type includes both fields + computed fields
-      const genericTypes = createType(name, fieldsData);
+      // For _Create/_Replace/_Update, we only want the "base" fields (not computed?)
+      // Up to you whether you include computed fields for create. Typically you don't.
+      const createTypeStr = createType(name, fields, "_Create", "create");
 
-      // CRUD variants only need base fields (not computed)
-      // but you could also let them include computed fields if you like
-      const crudTypeStr = createType(name, fields, "_Create");
-      const faunaCrudTypeStr = createType(name, fields, "_FaunaCreate");
-
-      exportTypeStr = exportTypeStr.concat(
-        "\n\t",
-        name,
-        ",\n\t",
-        `${name}_Create`,
-        ",\n\t",
-        `${name}_Update`,
-        ",\n\t",
-        `${name}_Replace`,
-        ",\n\t",
-        `${name}_FaunaCreate`,
-        ",\n\t",
-        `${name}_FaunaUpdate`,
-        ",\n\t",
-        `${name}_FaunaReplace`,
-        ","
-      );
-
-      UserCollectionsTypeMappingStr = UserCollectionsTypeMappingStr.concat(
-        "\n\t",
-        `${name}: {`,
-        "\n\t\t",
-        `main: ${name};`,
-        "\n\t\t",
-        `create: ${name}_Create;`,
-        "\n\t\t",
-        `replace: ${name}_Replace;`,
-        "\n\t\t",
-        `update: ${name}_Update;`,
-        "\n\t",
-        "};"
-      );
-
-      return genericTypes.concat(
-        "\n\n",
-        crudTypeStr,
-        "\n",
+      const combined = [
+        mainTypeStr,
+        "",
+        createTypeStr,
         `type ${name}_Replace = ${name}_Create;`,
-        "\n",
         `type ${name}_Update = Partial<${name}_Create>;`,
-        "\n\n",
-        faunaCrudTypeStr,
-        "\n",
-        `type ${name}_FaunaReplace = ${name}_FaunaCreate;`,
-        "\n",
-        `type ${name}_FaunaUpdate = Partial<${name}_FaunaCreate>;`
-      );
+      ].join("\n");
+
+      // Add them to our final export statements
+      exportTypeStr += `
+\t${name},
+\t${name}_Create,
+\t${name}_Replace,
+\t${name}_Update,`;
+
+      // Add them to the mapping interface
+      UserCollectionsTypeMappingStr += `
+\t${name}: {
+\t\tmain: ${name};
+\t\tcreate: ${name}_Create;
+\t\treplace: ${name}_Replace;
+\t\tupdate: ${name}_Update;
+\t};`;
+
+      return combined;
     })
-    .filter(Boolean) // remove undefined
+    .filter(Boolean)
     .join("\n\n");
 
   // Build up the final custom.ts content
-  const typesStr =
-    "import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';".concat(
-      "\n\n",
-      fieldTypes,
-      "\n\n",
-      `${UserCollectionsTypeMappingStr}\n}`,
-      "\n\n",
-      `${exportTypeStr}\n\tUserCollectionsTypeMapping\n};`,
-      "\n"
-    );
+  const typesFileContent = `
+import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 
-  // Ensure our output directory exists
+${fieldTypes}
+
+${UserCollectionsTypeMappingStr}
+}
+
+${exportTypeStr}
+\tUserCollectionsTypeMapping
+};
+`;
+
+  // Make sure directory exists
   const outputDir = path.resolve(dir, generatedTypesDirPath);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -159,7 +126,7 @@ export const generateTypes = (
 
   // Write custom.ts
   const customFilePath = path.resolve(outputDir, customFileName);
-  fs.writeFileSync(customFilePath, typesStr, { encoding: "utf-8" });
+  fs.writeFileSync(customFilePath, typesFileContent, { encoding: "utf-8" });
   console.log(`custom.ts generated successfully at ${generatedTypesDirPath}`);
 
   // Copy system-types.ts => system.ts
