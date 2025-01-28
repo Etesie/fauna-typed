@@ -21,19 +21,14 @@ const createType = (
 
   Object.entries(fields).forEach(([key, value]) => {
     if (!value.signature) {
-      console.warn(
-        `Skipping field '${key}' in collection '${name}' because it has no signature.`
-      );
+      console.warn(`Skipping field '${key}' in collection '${name}' because it has no signature.`);
       return;
     }
-
-    // parseFaunaType -> returns { type, isOptional }
     const { type, isOptional } = parseFaunaType(value.signature, mode);
-    // If isOptional => use question mark in the property name
     lines.push(`  ${key}${isOptional ? '?' : ''}: ${type};`);
   });
 
-  // For "update" mode, we might wrap the entire object in Partial<...>
+  // For "update" => wrap in Partial
   if (mode === 'update') {
     return `
 type ${name}${suffix} = Partial<{
@@ -41,7 +36,7 @@ ${lines.join("\n")}
 }>;`.trim();
   }
 
-  // For "main", "create", "replace"
+  // Else "main", "create", or "replace" => normal type
   return `
 type ${name}${suffix} = {
 ${lines.join("\n")}
@@ -53,8 +48,7 @@ export const generateTypes = (
   options?: GenerateTypesOptions
 ) => {
   const generatedTypesDirPath =
-    options?.generatedTypesDirPath ||
-    defaultGenerateTypeOptions.generatedTypesDirPath;
+    options?.generatedTypesDirPath || defaultGenerateTypeOptions.generatedTypesDirPath;
 
   const customFileName = "custom.ts";
   const dir = process.cwd();
@@ -64,18 +58,18 @@ export const generateTypes = (
 
   const fieldTypes = schema
     .map(({ name, fields, computed_fields }) => {
-      // Safely default fields/computed_fields to empty objects if undefined
+      // Safely default
       const safeFields = fields ?? {};
-      const safeComputedFields = computed_fields ?? {};
-      const allFields = { ...safeFields, ...safeComputedFields };
+      const safeComputed = computed_fields ?? {};
+      const allFields = { ...safeFields, ...safeComputed };
 
-      // 1) main
+      // main
       const mainTypeStr = createType(name, allFields, "", "main");
-      // 2) create
+      // create
       const createTypeStr = createType(name, safeFields, "_Create", "create");
-      // 3) replace
+      // replace
       const replaceTypeStr = createType(name, safeFields, "_Replace", "replace");
-      // 4) update
+      // update
       const updateTypeStr = createType(name, safeFields, "_Update", "update");
 
       exportTypeStr += `
@@ -105,9 +99,9 @@ export const generateTypes = (
     .filter(Boolean)
     .join("\n\n");
 
-  // Build final content
+  // Compose final file content:
   const typesFileContent = `
-import type { TimeStub, DateStub, DocumentReference } from 'fauna';
+import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
 import type { Document, Document_Create, Document_Update, Document_Replace } from './system';
 
 ${fieldTypes}
@@ -129,7 +123,7 @@ ${exportTypeStr}
 
   // Write custom.ts
   const customFilePath = path.resolve(outputDir, customFileName);
-  fs.writeFileSync(customFilePath, typesFileContent, { encoding: "utf-8" });
+  fs.writeFileSync(customFilePath, typesFileContent, "utf-8");
   console.log(`custom.ts generated successfully at ${generatedTypesDirPath}`);
 
   // Copy system-types.ts => system.ts
@@ -140,9 +134,7 @@ ${exportTypeStr}
     fs.copyFileSync(sourceSystemTypesTs, destSystemTypes);
     console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
-    console.error(
-      `system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue in the fauna-typed GitHub repository.`
-    );
+    console.error(`system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`);
     process.exit(1);
   }
 
