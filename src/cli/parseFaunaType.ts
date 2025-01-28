@@ -2,13 +2,15 @@
  * Recursively parse and convert a Fauna type signature to a TypeScript type.
  *
  * Modes:
- *   - "main":  references (Ref<Foo>) become just "Foo"
- *   - "create": references become "DocumentReference"
+ *   - "main":    references (Ref<Foo>) -> "Document<Foo>"
+ *   - "create":  references (Ref<Foo>) -> "Document_Create<Foo_Create>"
+ *   - "update":  references (Ref<Foo>) -> "Document_Update<Foo_Update>"
+ *   - "replace": references (Ref<Foo>) -> "Document_Replace<Foo_Replace>"
  */
-export function parseFaunaType(
-  signature: string,
-  mode: "main" | "create"
-): string {
+
+export type ParseMode = 'main' | 'create' | 'update' | 'replace';
+
+export function parseFaunaType(signature: string, mode: ParseMode): string {
   let trimmed = signature.trim();
 
   // 1) Remove trailing "?" if present
@@ -20,61 +22,69 @@ export function parseFaunaType(
   // 2) If it’s a top-level union type, split it properly by "|"
   if (isTopLevelUnion(trimmed)) {
     const parts = splitUnion(trimmed);
-    return parts.map((part) => parseFaunaType(part, mode)).join(" | ");
+    const unionStr = parts.map((part) => parseFaunaType(part, mode)).join(" | ");
+    return isOptional ? `${unionStr} | null` : unionStr;
   }
 
   // 3) Check if it's an object literal => starts with '{' and ends with '}'
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return parseFaunaObjectLiteral(trimmed, mode);
+    const obj = parseFaunaObjectLiteral(trimmed, mode);
+    // if optional, just tack on "undefined" to the union
+    return isOptional ? `${obj} | null` : obj;
   }
 
   // 4) Check if it's an array => "Array< ... >"
   if (trimmed.startsWith("Array<") && trimmed.endsWith(">")) {
     const inside = trimmed.slice("Array<".length, -1).trim();
     const parsedInside = parseFaunaType(inside, mode);
-    return `Array<${parsedInside}>`;
+    // if optional, union with undefined
+    return isOptional
+      ? `Array<${parsedInside}> | null`
+      : `Array<${parsedInside}>`;
   }
 
   // 5) Check if it's a reference => "Ref<Foo>"
+  //    We'll replace it depending on `mode`.
   if (trimmed.startsWith("Ref<") && trimmed.endsWith(">")) {
-    const inside = trimmed.slice(4, -1).trim();
-    if (mode === "create") {
-      // For create mode, references become DocumentReference
-      return "DocumentReference";
-    } else {
-      // For main mode, references become their domain type, e.g. "Foo"
-      return inside;
+    const inside = trimmed.slice(4, -1).trim(); // e.g. "Foo"
+    let result = inside;
+
+    switch (mode) {
+      case 'main':
+        // e.g. Document<User>
+        result = `Document<${inside}>`;
+        break;
+      case 'create':
+        // e.g. Document_Create<User_Create>
+        result = `Document_Create<${inside}_Create>`;
+        break;
+      case 'update':
+        // e.g. Document_Update<User_Update>
+        result = `Document_Update<${inside}_Update>`;
+        break;
+      case 'replace':
+        // e.g. Document_Replace<User_Replace>
+        result = `Document_Replace<${inside}_Replace>`;
+        break;
     }
+
+    return isOptional ? `${result} | undefined` : result;
   }
 
   // 6) Convert known scalars
-  switch (trimmed) {
-    case "String":
-      return "string";
-    case "Boolean":
-      return "boolean";
-    case "Long":
-    case "Int":
-      return "number";
-    case "Time":
-      return "TimeStub";
-    case "Date":
-      return "DateStub";
-    case "Null":
-      return "null";
-    default:
-      // If we can’t parse it, just return it as-is
-      return trimmed;
+  const convertedScalar = convertScalar(trimmed);
+  if (convertedScalar) {
+    return isOptional ? `${convertedScalar} | null` : convertedScalar;
   }
+
+  // 7) If we can’t parse it, just return it as-is
+  return isOptional ? `${trimmed} | null` : trimmed;
 }
 
 /**
  * Helper to parse an object literal: { key: type, key2: type2, ... }
  */
-function parseFaunaObjectLiteral(
-  objSignature: string,
-  mode: "main" | "create"
-): string {
+function parseFaunaObjectLiteral(objSignature: string, mode: ParseMode): string {
   // remove the outer braces
   const inside = objSignature.slice(1, -1).trim();
 
@@ -149,4 +159,28 @@ function splitObjectProperties(inside: string): string[] {
   }
   props.push(inside.slice(start).trim());
   return props.filter(Boolean);
+}
+
+/**
+ * Convert known Fauna scalars => TypeScript scalars
+ */
+function convertScalar(faunaType: string): string | null {
+  switch (faunaType) {
+    case "String":
+      return "string";
+    case "Boolean":
+      return "boolean";
+    case "Long":
+    case "Int":
+      return "number";
+    case "Time":
+    case "Timestamp":
+      return "TimeStub";
+    case "Date":
+      return "DateStub";
+    case "Null":
+      return "null";
+    default:
+      return null;
+  }
 }
