@@ -1,31 +1,23 @@
-// parseFaunaType.ts
-
 /**
  * Recursively parse and convert a Fauna type signature to a TypeScript type.
- * E.g.:
- *   "String"   => "string"
- *   "Long?"    => "number" (and the caller handles propertyName?)
- *   "Ref<User>" => "User"
- *   "Ref<Account>?" => "Account"
- *   "{ userId: String, email: String }" => "{ userId: string; email: string }"
- *   "Array<Ref<User>>" => "Array<User>"
- *   "Array<{ foo: Long }>" => "Array<{ foo: number }>"
+ *
+ * Modes:
+ *   - "main":  references (Ref<Foo>) become just "Foo"
+ *   - "create": references become "DocumentReference"
  */
 export function parseFaunaType(
   signature: string,
-  mode: "main" | "create" | "faunaCreate"
+  mode: "main" | "create"
 ): string {
   let trimmed = signature.trim();
 
   // 1) Remove trailing "?" if present
-  if (trimmed.endsWith("?")) {
+  const isOptional = trimmed.endsWith("?");
+  if (isOptional) {
     trimmed = trimmed.slice(0, -1).trim();
   }
 
-  // 2) If it’s a union type, we need to carefully split by "|"
-  //    but only at the top level (so as not to break nested objects).
-  //    For simplicity, let's assume we don’t have deeply nested unions
-  //    inside braces. If you do, you'll need a bracket-aware split.
+  // 2) If it’s a top-level union type, split it properly by "|"
   if (isTopLevelUnion(trimmed)) {
     const parts = splitUnion(trimmed);
     return parts.map((part) => parseFaunaType(part, mode)).join(" | ");
@@ -38,7 +30,6 @@ export function parseFaunaType(
 
   // 4) Check if it's an array => "Array< ... >"
   if (trimmed.startsWith("Array<") && trimmed.endsWith(">")) {
-    // get what's inside the Array<...>
     const inside = trimmed.slice("Array<".length, -1).trim();
     const parsedInside = parseFaunaType(inside, mode);
     return `Array<${parsedInside}>`;
@@ -47,12 +38,11 @@ export function parseFaunaType(
   // 5) Check if it's a reference => "Ref<Foo>"
   if (trimmed.startsWith("Ref<") && trimmed.endsWith(">")) {
     const inside = trimmed.slice(4, -1).trim();
-
     if (mode === "create") {
-      return inside + " | DocumentReference";
-    } else if (mode === "faunaCreate") {
+      // For create mode, references become DocumentReference
       return "DocumentReference";
     } else {
+      // For main mode, references become their domain type, e.g. "Foo"
       return inside;
     }
   }
@@ -83,19 +73,16 @@ export function parseFaunaType(
  */
 function parseFaunaObjectLiteral(
   objSignature: string,
-  mode: "main" | "create" | "faunaCreate"
+  mode: "main" | "create"
 ): string {
   // remove the outer braces
   const inside = objSignature.slice(1, -1).trim();
 
   // We need to split top-level properties by commas.
-  // We'll do a bracket-based approach to handle nested objects.
   const props = splitObjectProperties(inside);
 
   // parse each prop
   const parsedProps = props.map((prop) => {
-    // prop might look like:  "userId: String"
-    // or "nested: { foo: Int }"
     const idx = prop.indexOf(":");
     if (idx === -1) {
       // Not a valid "key: value", just return raw
@@ -111,8 +98,7 @@ function parseFaunaObjectLiteral(
 }
 
 /**
- * Splits a union type at top-level `|` (not inside braces).
- * e.g. "Ref<User> | Ref<Account>" => ["Ref<User>", "Ref<Account>"]
+ * If top-level union: "Ref<User> | Ref<Account>", etc.
  */
 function isTopLevelUnion(str: string): boolean {
   let depth = 0;
@@ -147,10 +133,6 @@ function splitUnion(str: string): string[] {
 /**
  * Splits object-literal properties by commas at top-level only.
  * e.g. "name: String, nested: { foo: Int, bar: { qux: String } }, other: Boolean"
- * should yield 3 top-level props:
- *   1) name: String
- *   2) nested: { foo: Int, bar: { qux: String } }
- *   3) other: Boolean
  */
 function splitObjectProperties(inside: string): string[] {
   const props: string[] = [];
