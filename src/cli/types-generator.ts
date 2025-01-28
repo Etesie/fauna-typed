@@ -4,10 +4,6 @@ import type { Fields, NamedDocument, Collection } from "./system-types";
 import { parseFaunaType, ParseMode } from "./parseFaunaType";
 
 type GenerateTypesOptions = {
-  /**
-   * Directory to place generated files.
-   * Defaults to "fauna-types".
-   */
   generatedTypesDirPath?: string;
 };
 
@@ -15,21 +11,12 @@ const defaultGenerateTypeOptions = {
   generatedTypesDirPath: "fauna-types",
 };
 
-/**
- * Create a TypeScript type definition for a given collection name and fields.
- *
- * @param name The name of the collection (e.g. "Account")
- * @param fields The fields to be included in the generated type.
- * @param suffix e.g. "_Create" or "" — appended to the type's name.
- * @param mode "main" | "create" | "update" | "replace"
- */
 const createType = (
   name: string,
   fields: Fields,
   suffix: string,
   mode: ParseMode
 ): string => {
-  // We'll gather each field’s type string.
   const lines: string[] = [];
 
   Object.entries(fields).forEach(([key, value]) => {
@@ -40,25 +27,21 @@ const createType = (
       return;
     }
 
-    // parseFaunaType returns the TS type, applying references => Document / Document_Create etc.
-    const parsedType = parseFaunaType(value.signature, mode);
-    lines.push(`  ${key}: ${parsedType};`);
+    // parseFaunaType -> returns { type, isOptional }
+    const { type, isOptional } = parseFaunaType(value.signature, mode);
+    // If isOptional => use question mark in the property name
+    lines.push(`  ${key}${isOptional ? '?' : ''}: ${type};`);
   });
 
-  // For "update" mode, we likely want a Partial of all fields
-  // Because an Update in Fauna can supply just some fields
-  if (mode === "update") {
-    // We wrap in Partial
+  // For "update" mode, we might wrap the entire object in Partial<...>
+  if (mode === 'update') {
     return `
 type ${name}${suffix} = Partial<{
 ${lines.join("\n")}
 }>;`.trim();
   }
 
-  // If it's "replace", typically it's the full object, just references become Document_Replace
-  // If it's "create", references become Document_Create
-  // If it's "main", references become Document
-  // No partial needed for "create"/"replace" by default.
+  // For "main", "create", "replace"
   return `
 type ${name}${suffix} = {
 ${lines.join("\n")}
@@ -81,30 +64,26 @@ export const generateTypes = (
 
   const fieldTypes = schema
     .map(({ name, fields, computed_fields }) => {
-      // Make sure both fields & computed_fields are non-undefined
+      // Safely default fields/computed_fields to empty objects if undefined
       const safeFields = fields ?? {};
-      const safeComputed = computed_fields ?? {};
+      const safeComputedFields = computed_fields ?? {};
+      const allFields = { ...safeFields, ...safeComputedFields };
 
-      const allFields = { ...safeFields, ...safeComputed };
-
+      // 1) main
       const mainTypeStr = createType(name, allFields, "", "main");
+      // 2) create
       const createTypeStr = createType(name, safeFields, "_Create", "create");
-      const replaceTypeStr = createType(
-        name,
-        safeFields,
-        "_Replace",
-        "replace"
-      );
+      // 3) replace
+      const replaceTypeStr = createType(name, safeFields, "_Replace", "replace");
+      // 4) update
       const updateTypeStr = createType(name, safeFields, "_Update", "update");
 
-      // Add them to our final export statements
       exportTypeStr += `
   ${name},
   ${name}_Create,
   ${name}_Replace,
   ${name}_Update,`;
 
-      // Add them to the mapping interface
       UserCollectionsTypeMappingStr += `
   ${name}: {
     main: ${name};
@@ -126,9 +105,10 @@ export const generateTypes = (
     .filter(Boolean)
     .join("\n\n");
 
-  // Build up the final custom.ts content
-  const typesFileContent = `import type { TimeStub, DateStub, DocumentReference } from 'fauna';
-import type { Document, Document_Create, Document_Replace, Document_Update } from './system';
+  // Build final content
+  const typesFileContent = `
+import type { TimeStub, DateStub, DocumentReference } from 'fauna';
+import type { Document, Document_Create, Document_Update, Document_Replace } from './system';
 
 ${fieldTypes}
 
@@ -140,7 +120,7 @@ ${exportTypeStr}
 };
 `;
 
-  // Make sure directory exists
+  // Ensure directory
   const outputDir = path.resolve(dir, generatedTypesDirPath);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
