@@ -21,26 +21,33 @@ const createType = (
 
   Object.entries(fields).forEach(([key, value]) => {
     if (!value.signature) {
-      console.warn(`Skipping field '${key}' in collection '${name}' because it has no signature.`);
+      console.warn(
+        `Skipping field '${key}' in collection '${name}' because it has no signature.`
+      );
       return;
     }
     const { type, isOptional } = parseFaunaType(value.signature, mode);
-    lines.push(`  ${key}${isOptional ? '?' : ''}: ${type};`);
+    lines.push(`  ${key}${isOptional ? "?" : ""}: ${type};`);
   });
 
-  // For "update" => wrap in Partial
-  if (mode === 'update') {
-    return `
-type ${name}${suffix} = Partial<{
-${lines.join("\n")}
-}>;`.trim();
-  }
+  // Build the inner object literal as a string
+  const innerTypeBody = `{
+    ${lines.join("\n")}
+  }`;
 
-  // Else "main", "create", or "replace" => normal type
-  return `
-type ${name}${suffix} = {
-${lines.join("\n")}
-};`.trim();
+  // Depending on the mode, wrap the type with the appropriate generic
+  switch (mode) {
+    case "main":
+      return `\ntype ${name}${suffix} = Document<${innerTypeBody}>;`;
+    case "create":
+      return `\ntype ${name}${suffix} = Document_Create<${innerTypeBody}>;`;
+    case "replace":
+      return `\ntype ${name}${suffix} = Document_Replace<${innerTypeBody}>;`;
+    case "update":
+      return `\ntype ${name}${suffix} = Document_Update<Partial<${innerTypeBody}>>;`;
+    default:
+      return "";
+  }
 };
 
 export const generateTypes = (
@@ -48,7 +55,8 @@ export const generateTypes = (
   options?: GenerateTypesOptions
 ) => {
   const generatedTypesDirPath =
-    options?.generatedTypesDirPath || defaultGenerateTypeOptions.generatedTypesDirPath;
+    options?.generatedTypesDirPath ||
+    defaultGenerateTypeOptions.generatedTypesDirPath;
 
   const customFileName = "custom.ts";
   const dir = process.cwd();
@@ -68,7 +76,12 @@ export const generateTypes = (
       // create
       const createTypeStr = createType(name, safeFields, "_Create", "create");
       // replace
-      const replaceTypeStr = createType(name, safeFields, "_Replace", "replace");
+      const replaceTypeStr = createType(
+        name,
+        safeFields,
+        "_Replace",
+        "replace"
+      );
       // update
       const updateTypeStr = createType(name, safeFields, "_Update", "update");
 
@@ -101,7 +114,7 @@ export const generateTypes = (
 
   // Compose final file content:
   const typesFileContent = `
-import { type TimeStub, type DateStub, type DocumentReference } from 'fauna';
+import type { TimeStub, DateStub, DocumentReference } from 'fauna';
 import type { Document, Document_Create, Document_Update, Document_Replace } from './system';
 
 ${fieldTypes}
@@ -134,7 +147,9 @@ ${exportTypeStr}
     fs.copyFileSync(sourceSystemTypesTs, destSystemTypes);
     console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
-    console.error(`system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`);
+    console.error(
+      `system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`
+    );
     process.exit(1);
   }
 
