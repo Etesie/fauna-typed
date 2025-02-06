@@ -22,35 +22,40 @@
 
 - **Automated Type Generation:** Quickly generate TypeScript types reflecting your Fauna collections and their schemas.
 
+- **Runtime Type Validation:** Out of the box generated type validator with Arktype (similar to Zod, but faster)
+
 - **Seamless Integration:** Easily integrate the generated types into your existing TypeScript projects.
 
 ## Usage
 
 ### Installation
 
-You can install **Fauna Typed** as a development dependency with the package manager of your choice.
+First install fauna-typed as developer dependency and [ArkType](https://arktype.io/)
 
 #### Using pnpm
 
 ```bash
 pnpm add -D fauna-typed
+pnpm add arktype
 ```
 
 #### Using npm
 
 ```bash
 npm install --save-dev fauna-typed
+npm install arktype
 ```
 
 #### Using yarn
 
 ```bash
 yarn add -D fauna-typed
+yarn add arktype
 ```
 
 ### Types Generation
 
-After installation, you can use the CLI to generate TypeScript types based on your Fauna database schema.
+After installation, you can use the CLI to generate TypeScript types (available during compile time) and runtime types using Arktype (available during runtime) based on your Fauna database schema. Depending on the use case, you can pick what you want.
 
 #### Basic Usage
 
@@ -126,19 +131,19 @@ The generated types provide seamless integration between your Fauna database and
 Example: `User.all()`
 
 ```typescript
-import { Client, fql } from 'fauna';
-import type { Page, Document } from 'fauna-typed/system';
-import { User } from 'fauna-typed/custom';
+import { Client, fql } from "fauna";
+import type { Page } from "fauna-typed/system";
+import { User } from "fauna-typed/custom";
 
 const client = new Client({
-	secret: '<YOUR_FAUNA_KEY>'
+  secret: "<YOUR_FAUNA_KEY>",
 });
 
-const response = await client.query<Page<Document<User>>>(fql`User.all()`); // Returned type: QuerySuccess<Page<Document<User>>>
+const response = await client.query<Page<User>>(fql`User.all()`); // Returned type: QuerySuccess<Page<User>>
 
-const page = response.data; // type: Page<Document<User>>
+const page = response.data; // type: Page<User>
 
-const data = page.data; // type: Array<Document<User>>
+const data = page.data; // type: Array<User>
 ```
 
 #### Fetch One Document from a User-Defined Collection
@@ -146,16 +151,15 @@ const data = page.data; // type: Array<Document<User>>
 Example: `User.all().first()`
 
 ```typescript
-import { Client, fql } from 'fauna';
-import type { Document } from 'fauna-typed/system';
-import { User } from 'fauna-typed/custom';
+import { Client, fql } from "fauna";
+import { User } from "fauna-typed/custom";
 
 const client = new Client({
-	secret: '<YOUR_FAUNA_KEY>'
+  secret: "<YOUR_FAUNA_KEY>",
 });
 
-const response = await client.query<Document<User>>(fql`User.all().first()`); // Returned type: QuerySuccess<Document<User>>
-const data = response.data; // type: Document<User>
+const response = await client.query<User>(fql`User.all().first()`); // Returned type: QuerySuccess<User>
+const data = response.data; // type: User
 ```
 
 #### Fetch One Document from a System-Defined Collection
@@ -163,15 +167,17 @@ const data = response.data; // type: Document<User>
 Example: `Collection.all().first()`
 
 ```typescript
-import { Client, fql } from 'fauna';
-import type { NamedDocument, Collection } from 'fauna-typed/system';
+import { Client, fql } from "fauna";
+import type { Collection } from "fauna-typed/system";
 
 const client = new Client({
-	secret: '<YOUR_FAUNA_KEY>'
+  secret: "<YOUR_FAUNA_KEY>",
 });
 
-const response = await client.query<NamedDocument<Collection>>(fql`Collection.all().first()`); // Returned type: QuerySuccess<NamedDocument<Collection>>
-const data = response.data; // type: NamedDocument<Collection>
+const response = await client.query<Collection>(
+  fql`Collection.all().first()`
+); // Returned type: QuerySuccess<Collection>
+const data = response.data; // type: Collection
 ```
 
 ## Development and Contributing
@@ -238,5 +244,4 @@ If you wish to contribute to **Fauna Typed** or customize it further, follow the
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
+This project is licensed under the [ISC License](LICENSE) (Same like MIT, but easier description).
