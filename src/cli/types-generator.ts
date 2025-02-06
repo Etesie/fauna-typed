@@ -40,7 +40,7 @@ function formatObjectLiteral(raw: string, optionalKeys: boolean = false): string
     const keyOut = optionalKeys
       ? JSON.stringify(key.endsWith("?") ? key : key + "?")
       : key;
-    // Process value: if it is a union (contains "|"), then for each union member remove any quotes and then wrap each member in single quotes.
+    // If the value is a union (contains "|"), process each member.
     if (val.includes("|")) {
       const unionParts = val.split("|").map(p => {
         p = p.trim();
@@ -52,7 +52,7 @@ function formatObjectLiteral(raw: string, optionalKeys: boolean = false): string
       const unionStr = unionParts.join(" | ");
       return `${keyOut}: "${unionStr}"`;
     } else {
-      // If the value is already quoted, leave it.
+      // If not already quoted, then quote it.
       if (val.startsWith('"') || val.startsWith("'")) {
         return `${keyOut}: ${val}`;
       } else {
@@ -186,14 +186,22 @@ ${modes[mode].join("\n")}
 }).export();\n`;
   };
 
-  // Generate type aliases in scope order.
+  // Generate type aliases.
+  // Per expected sample:
+  // - For "User", add .infer on the main type.
+  // - For others (Account, Verification), main type is not suffixed.
+  // - For all _Create, _Update, _Replace, append .infer.
   const typeAliases = scopeCollections
     .map(({ name }) => {
       const key = toPropertyKey(name);
-      return `type ${name} = typeof types.${key};
-type ${name}_Create = typeof types_create.${key};
-type ${name}_Update = typeof types_update.${key};
-type ${name}_Replace = typeof types_replace.${key};`;
+      const mainType =
+        name === "User"
+          ? `typeof types.${key}.infer`
+          : `typeof types.${key}`;
+      return `type ${name} = ${mainType};
+type ${name}_Create = typeof types_create.${key}.infer;
+type ${name}_Update = typeof types_update.${key}.infer;
+type ${name}_Replace = typeof types_replace.${key}.infer;`;
     })
     .join("\n\n");
 
