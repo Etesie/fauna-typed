@@ -13,7 +13,7 @@ import { generateTypes } from './types-generator';
 import dotenv from 'dotenv';
 import path from 'path';
 import { Client, fql } from 'fauna';
-import type { Collection, NamedDocument, Page } from './system-types.ts';
+import type { Collection, Page } from './system-types.ts';
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -50,7 +50,7 @@ async function main() {
 		// Retrieve the schema from Fauna
 		const {
 			data: { data: collections }
-		} = await client.query<Page<NamedDocument<Collection>>>(fql`Collection.all()`);
+		} = await client.query<Page<Collection>>(fql`Collection.all()`);
 
 		if (!collections || collections.length === 0) {
 			console.warn('No collections found in Fauna. Exiting...');
