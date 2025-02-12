@@ -15,7 +15,7 @@ const defaultGenerateTypeOptions = {
  * Helper: Format an object literal string.
  * Expected raw input (for non‑update):
  *   { name: "Github" | "Google" | "Facebook"; userId: string; email: string }
- * 
+ *
  * In update mode (optionalKeys true), every property key will be wrapped in quotes
  * with a trailing "?".
  * Expected output in update mode:
@@ -24,14 +24,20 @@ const defaultGenerateTypeOptions = {
  * In non‑update mode, keys are left unquoted:
  *   { name: "'Github' | 'Google' | 'Facebook'", userId: "string", email: "string" }
  */
-function formatObjectLiteral(raw: string, optionalKeys: boolean = false): string {
+function formatObjectLiteral(
+  raw: string,
+  optionalKeys: boolean = false
+): string {
   // Remove the outer braces.
   let inner = raw.slice(1, -1).trim();
   // Replace semicolons with commas so that we have consistent delimiters.
   inner = inner.replace(/;/g, ",");
   // Split into parts on commas (assuming a flat structure)
-  let parts = inner.split(",").map(s => s.trim()).filter(Boolean);
-  let formattedParts = parts.map(part => {
+  let parts = inner
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  let formattedParts = parts.map((part) => {
     const colonIndex = part.indexOf(":");
     if (colonIndex === -1) return part;
     let key = part.slice(0, colonIndex).trim();
@@ -42,9 +48,12 @@ function formatObjectLiteral(raw: string, optionalKeys: boolean = false): string
       : key;
     // If the value is a union (contains "|"), process each member.
     if (val.includes("|")) {
-      const unionParts = val.split("|").map(p => {
+      const unionParts = val.split("|").map((p) => {
         p = p.trim();
-        if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
+        if (
+          (p.startsWith('"') && p.endsWith('"')) ||
+          (p.startsWith("'") && p.endsWith("'"))
+        ) {
           p = p.slice(1, -1);
         }
         return `'${p}'`;
@@ -112,7 +121,9 @@ const generateArktypeFields = (
     const keyOutput =
       mode === "update"
         ? JSON.stringify(key + "?")
-        : (isOptional ? JSON.stringify(key + "?") : key);
+        : isOptional
+        ? JSON.stringify(key + "?")
+        : key;
     lines.push(`  ${keyOutput}: ${formattedType},`);
   });
   return `{\n${lines.join("\n")}\n}`;
@@ -123,7 +134,8 @@ export const generateTypes = (
   options?: GenerateTypesOptions
 ) => {
   const generatedTypesDirPath =
-    options?.generatedTypesDirPath || defaultGenerateTypeOptions.generatedTypesDirPath;
+    options?.generatedTypesDirPath ||
+    defaultGenerateTypeOptions.generatedTypesDirPath;
   const customFileName = "custom.ts";
   const dir = process.cwd();
 
@@ -143,12 +155,12 @@ export const generateTypes = (
 
   // Build arrays for scope generation using the scopeOrder.
   const scopeCollections = scopeOrder
-    .map(colName => collectionsData.find(c => c.name === colName))
+    .map((colName) => collectionsData.find((c) => c.name === colName))
     .filter(Boolean) as typeof collectionsData;
 
   // Build arrays for mapping interface and export using mappingOrder.
   const mappingCollections = mappingOrder
-    .map(colName => collectionsData.find(c => c.name === colName))
+    .map((colName) => collectionsData.find((c) => c.name === colName))
     .filter(Boolean) as typeof collectionsData;
 
   // Helper: convert a collection name (e.g. "User") to a property key (e.g. "user")
@@ -173,9 +185,13 @@ export const generateTypes = (
 
   scopeCollections.forEach(({ name, fields, computed }) => {
     const key = toPropertyKey(name);
-    (Object.keys(modeBases) as ParseMode[]).forEach(mode => {
-      const fieldsForMode = mode === "main" ? { ...fields, ...computed } : fields;
-      const valueStr = `[${modeBases[mode]}, "&", ${generateArktypeFields(fieldsForMode, mode)}]`;
+    (Object.keys(modeBases) as ParseMode[]).forEach((mode) => {
+      const fieldsForMode =
+        mode === "main" ? { ...fields, ...computed } : fields;
+      const valueStr = `[${modeBases[mode]}, "&", ${generateArktypeFields(
+        fieldsForMode,
+        mode
+      )}]`;
       modes[mode].push(`  ${key}: ${valueStr},`);
     });
   });
@@ -194,11 +210,7 @@ ${modes[mode].join("\n")}
   const typeAliases = scopeCollections
     .map(({ name }) => {
       const key = toPropertyKey(name);
-      const mainType =
-        name === "User"
-          ? `typeof types.${key}.infer`
-          : `typeof types.${key}`;
-      return `type ${name} = ${mainType};
+      return `type ${name} = typeof types.${key}.infer;
 type ${name}_Create = typeof types_create.${key}.infer;
 type ${name}_Update = typeof types_update.${key}.infer;
 type ${name}_Replace = typeof types_replace.${key}.infer;`;
@@ -285,7 +297,9 @@ export type {
     fs.copyFileSync(sourceSystemTypesTs, destSystemTypes);
     console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
-    console.error(`system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`);
+    console.error(
+      `system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`
+    );
     process.exit(1);
   }
 
