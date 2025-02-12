@@ -310,6 +310,7 @@ const validator = {
   createRef: createDocumentRef,
   field,
   fields,
+  nullDocument
 };
 
 export type DocumentT<T extends QueryValueObject> = {
