@@ -13,31 +13,28 @@ const defaultGenerateTypeOptions = {
 
 /**
  * Helper: Format an object literal string.
- * Expected raw input (for non‑update):
+ * 
+ * For a raw input like:
  *   { name: "Github" | "Google" | "Facebook"; userId: string; email: string }
- *
- * In update mode (optionalKeys true), every property key will be wrapped in quotes
- * with a trailing "?".
- * Expected output in update mode:
+ * 
+ * In update mode (optionalKeys true), every property key is wrapped in quotes with a trailing "?".
+ * Expected update output:
  *   { "name?": "'Github' | 'Google' | 'Facebook'", "userId?": "string", "email?": "string" }
- *
+ * 
  * In non‑update mode, keys are left unquoted:
  *   { name: "'Github' | 'Google' | 'Facebook'", userId: "string", email: "string" }
+ * 
+ * Also, if a value starts with "createRef(" or "v.createRef(", it is always returned as a reference expression
+ * prefixed with "v.createRef(".
  */
-function formatObjectLiteral(
-  raw: string,
-  optionalKeys: boolean = false
-): string {
+function formatObjectLiteral(raw: string, optionalKeys: boolean = false): string {
   // Remove the outer braces.
   let inner = raw.slice(1, -1).trim();
-  // Replace semicolons with commas so that we have consistent delimiters.
+  // Replace semicolons with commas.
   inner = inner.replace(/;/g, ",");
-  // Split into parts on commas (assuming a flat structure)
-  let parts = inner
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  let formattedParts = parts.map((part) => {
+  // Split into parts on commas (assumes a flat structure).
+  let parts = inner.split(",").map(s => s.trim()).filter(Boolean);
+  let formattedParts = parts.map(part => {
     const colonIndex = part.indexOf(":");
     if (colonIndex === -1) return part;
     let key = part.slice(0, colonIndex).trim();
@@ -48,20 +45,21 @@ function formatObjectLiteral(
       : key;
     // If the value is a union (contains "|"), process each member.
     if (val.includes("|")) {
-      const unionParts = val.split("|").map((p) => {
+      const unionParts = val.split("|").map(p => {
         p = p.trim();
-        if (
-          (p.startsWith('"') && p.endsWith('"')) ||
-          (p.startsWith("'") && p.endsWith("'"))
-        ) {
+        if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
           p = p.slice(1, -1);
         }
         return `'${p}'`;
       });
       const unionStr = unionParts.join(" | ");
       return `${keyOut}: "${unionStr}"`;
+    } else if (val.startsWith("createRef(") || val.startsWith("v.createRef(")) {
+      // Ensure the value is always prefixed with "v.createRef(".
+      const refExpr = val.startsWith("v.createRef(") ? val : "v." + val;
+      return `${keyOut}: ${refExpr}`;
     } else {
-      // If not already quoted, then quote it.
+      // Otherwise, if not already quoted, then quote it.
       if (val.startsWith('"') || val.startsWith("'")) {
         return `${keyOut}: ${val}`;
       } else {
@@ -74,9 +72,8 @@ function formatObjectLiteral(
 
 /**
  * Helper: Format a parsed type.
- * - If the type is an object literal, call formatObjectLiteral (passing optionalKeys true in update mode).
- * - For non‑main modes, if the type is a reference snippet (starting with "createRef("),
- *   ensure it’s prefixed with "v.".
+ * - If the type is an object literal, call formatObjectLiteral (with optionalKeys true in update mode).
+ * - In non‑main modes, if the type is a reference snippet (starting with "createRef("), ensure it’s prefixed with "v.".
  * - If the type contains a union operator ("|") (and is not an object literal), replace double quotes with single quotes and wrap in double quotes.
  * - Otherwise, wrap plain scalars in double quotes.
  */
@@ -117,13 +114,11 @@ const generateArktypeFields = (
     }
     const { type, isOptional } = parseFaunaType(value.signature, mode);
     const formattedType = formatType(mode, type);
-    // For update mode, always mark top-level keys as optional (wrapped in quotes)
+    // For update mode, force top-level keys to be optional (wrapped in quotes).
     const keyOutput =
       mode === "update"
         ? JSON.stringify(key + "?")
-        : isOptional
-        ? JSON.stringify(key + "?")
-        : key;
+        : (isOptional ? JSON.stringify(key + "?") : key);
     lines.push(`  ${keyOutput}: ${formattedType},`);
   });
   return `{\n${lines.join("\n")}\n}`;
@@ -134,34 +129,20 @@ export const generateTypes = (
   options?: GenerateTypesOptions
 ) => {
   const generatedTypesDirPath =
-    options?.generatedTypesDirPath ||
-    defaultGenerateTypeOptions.generatedTypesDirPath;
+    options?.generatedTypesDirPath || defaultGenerateTypeOptions.generatedTypesDirPath;
   const customFileName = "custom.ts";
   const dir = process.cwd();
 
-  // For main mode, use both regular fields and computed fields.
-  // For create/update/replace, use only the regular fields.
+  // Use all collections from the provided schema.
   const collectionsData = schema.map(({ name, fields, computed_fields }) => {
     const safeFields = fields ?? {};
     const safeComputed = computed_fields ?? {};
     return { name, fields: safeFields, computed: safeComputed };
   });
 
-  // Define explicit orders:
-  // For scope generation and validator, we want the order: User, Account, Verification.
-  const scopeOrder = ["User", "Account", "Verification"];
-  // For the mapping interface and export order, we want: Account, User, Verification.
-  const mappingOrder = ["Account", "User", "Verification"];
-
-  // Build arrays for scope generation using the scopeOrder.
-  const scopeCollections = scopeOrder
-    .map((colName) => collectionsData.find((c) => c.name === colName))
-    .filter(Boolean) as typeof collectionsData;
-
-  // Build arrays for mapping interface and export using mappingOrder.
-  const mappingCollections = mappingOrder
-    .map((colName) => collectionsData.find((c) => c.name === colName))
-    .filter(Boolean) as typeof collectionsData;
+  // Use all collections without reordering.
+  const scopeCollections = collectionsData;
+  const mappingCollections = collectionsData;
 
   // Helper: convert a collection name (e.g. "User") to a property key (e.g. "user")
   const toPropertyKey = (name: string) =>
@@ -185,28 +166,20 @@ export const generateTypes = (
 
   scopeCollections.forEach(({ name, fields, computed }) => {
     const key = toPropertyKey(name);
-    (Object.keys(modeBases) as ParseMode[]).forEach((mode) => {
-      const fieldsForMode =
-        mode === "main" ? { ...fields, ...computed } : fields;
-      const valueStr = `[${modeBases[mode]}, "&", ${generateArktypeFields(
-        fieldsForMode,
-        mode
-      )}]`;
+    (Object.keys(modeBases) as ParseMode[]).forEach(mode => {
+      const fieldsForMode = mode === "main" ? { ...fields, ...computed } : fields;
+      const valueStr = `[${modeBases[mode]}, "&", ${generateArktypeFields(fieldsForMode, mode)}]`;
       modes[mode].push(`  ${key}: ${valueStr},`);
     });
   });
 
-  const scopeBlocks = (mode: ParseMode) => {
+  const scopeBlocksText = (mode: ParseMode) => {
     return `const types${mode === "main" ? "" : "_" + mode} = scope({
 ${modes[mode].join("\n")}
 }).export();\n`;
   };
 
   // Generate type aliases.
-  // Per expected sample:
-  // - For "User", add .infer on the main type.
-  // - For others (Account, Verification), main type is not suffixed.
-  // - For all _Create, _Update, _Replace, append .infer.
   const typeAliases = scopeCollections
     .map(({ name }) => {
       const key = toPropertyKey(name);
@@ -217,7 +190,7 @@ type ${name}_Replace = typeof types_replace.${key}.infer;`;
     })
     .join("\n\n");
 
-  // Generate the mapping interface using the mapping order.
+  // Generate the mapping interface.
   const mappingEntries = mappingCollections
     .map(({ name }) => {
       return `  ${name}: {
@@ -229,7 +202,7 @@ type ${name}_Replace = typeof types_replace.${key}.infer;`;
     })
     .join("\n");
 
-  // Generate the validator object using scope order.
+  // Generate the validator object.
   const validatorEntries = scopeCollections
     .map(({ name }) => {
       const key = toPropertyKey(name);
@@ -242,7 +215,7 @@ type ${name}_Replace = typeof types_replace.${key}.infer;`;
     })
     .join(",\n");
 
-  // Generate export types in mapping order.
+  // Generate export types.
   const exportTypes = mappingCollections
     .map(({ name }) => {
       return `${name}, ${name}_Create, ${name}_Replace, ${name}_Update,`;
@@ -254,10 +227,10 @@ import { v } from "./system";
 
 import { scope, type } from "arktype";
 
-${scopeBlocks("main")}
-${scopeBlocks("create")}
-${scopeBlocks("update")}
-${scopeBlocks("replace")}
+${scopeBlocksText("main")}
+${scopeBlocksText("create")}
+${scopeBlocksText("update")}
+${scopeBlocksText("replace")}
 
 ${typeAliases}
 
@@ -297,9 +270,7 @@ export type {
     fs.copyFileSync(sourceSystemTypesTs, destSystemTypes);
     console.log(`system.ts copied successfully to ${generatedTypesDirPath}`);
   } else {
-    console.error(
-      `system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`
-    );
+    console.error(`system-types.ts not found at ${sourceSystemTypesTs}. Please create an issue.`);
     process.exit(1);
   }
 
