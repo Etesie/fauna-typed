@@ -60,15 +60,16 @@ async function main() {
 		console.log('Found collections:', collections.map((c) => c.name).join(', '));
 
 		// Generate the types with optional parameters
-		const result = generateTypes(collections, {
+		generateTypes(collections, {
 			generatedTypesDirPath
 		});
 
+		// Fix: remove extra curly brace in the path
 		const outputPath = path.resolve(
 			process.cwd(),
-			`${generatedTypesDirPath}}`
+			`${generatedTypesDirPath}`
 		);
-		console.log(result?.message || 'Type generation complete!');
+		console.log('Type generation complete!');
 		console.log(`Type definitions generated at ${outputPath}`);
 	} catch (err) {
 		console.error(`Error generating Fauna types: ${(err as Error)?.message ?? err}`);
