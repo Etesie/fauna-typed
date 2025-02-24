@@ -2,142 +2,158 @@ export type ParseMode = "main" | "create" | "update" | "replace";
 
 export interface ParsedResult {
   /**
-   * The final type text, e.g. "\"string\"", "[\"string\"]", "[v.createRef(...)]", "[{ ... }]", etc.
+   * The final string for the type, e.g.
+   *  - "\"string\""
+   *  - "\"string[]\""
+   *  - "v.createRef(type(\"'User'\"))"
+   *  - "v.createRef(type(\"'User'\")).array()"
+   *  - "[{ user: \"user\" }, \"[]\"]"
    */
   type: string;
-  /** Was it optional (trailing '?')? */
   isOptional: boolean;
 }
 
 /**
- * parseFaunaType:
- * - If top-level union => single-quote each piece, entire union in double quotes
- * - If array => produce bracketed form [something]
- * - If reference => "v.createRef(...)"
- * - If object => parse subfields
- * - If scalar => e.g. "\"string\""
+ * parseFaunaType
+ * The special logic for arrays:
+ *   - If the inside is a *quoted scalar* => produce `"something[]"`
+ *   - If the inside is a reference => produce e.g. v.createRef(...).array()
+ *   - If the inside is an object => produce `[ { ... }, "[]" ]`
  */
-export function parseFaunaType(signature: string, mode: ParseMode): ParsedResult {
+export function parseFaunaType(
+  signature: string,
+  mode: ParseMode
+): ParsedResult {
   let trimmed = signature.trim();
 
-  // 1) Check optional
+  // 1) optional check
   const isOptional = trimmed.endsWith("?");
   if (isOptional) {
     trimmed = trimmed.slice(0, -1).trim();
   }
 
-  // 2) If top-level union => treat as union
+  // 2) top-level union?
   if (trimmed.includes("|") && isTopLevelUnion(trimmed)) {
     const parts = trimmed.split("|").map((p) => p.trim());
-    const unionParts = parts.map(stripOuterQuotesThenSingleQuote);
+    const finalParts = parts.map(stripOuterQuotesThenSingleQuote);
     // => "'Github' | 'Google'"
     return {
-      type: `"${unionParts.join(" | ")}"`,
+      type: `"${finalParts.join(" | ")}"`,
       isOptional,
     };
   }
 
-  // 3) If "Array<...>", produce bracketed array
+  // 3) Array check
   if (trimmed.startsWith("Array<") && trimmed.endsWith(">")) {
-    const inside = trimmed.slice(6, -1).trim(); // e.g. "String"
-    const inner = parseFaunaType(inside, mode);
-    // if it's a simple scalar like "\"string\"", produce `[ "string" ]` => `["string"]`
-    // if it's a reference => `[ v.createRef(type("'User'")) ]`
-    // if it's an object => `[ { user: "user", ... } ]`
-    return {
-      type: `[${inner.type}]`,
-      isOptional,
-    };
+    const inside = trimmed.slice(6, -1).trim();
+    const inner = parseFaunaType(inside, mode); // parse inside
+
+    // a) If the inside is a "quoted scalar" => produce "something[]"
+    //    e.g. if inside.type = "\"string\"", we want => "string[]"
+    if (isQuotedScalar(inner.type)) {
+      // strip leading/trailing quotes from the inside
+      const scalar = inner.type.slice(1, -1); // e.g. string
+      return { type: `"${scalar}[]"`, isOptional };
+    }
+
+    // b) If the inside is a reference => produce => v.createRef(...).array()
+    if (mode !== "main" && inner.type.startsWith("v.createRef(")) {
+      return { type: `${inner.type}.array()`, isOptional };
+    }
+
+    // c) If the inside is an object => produce => [ { ... }, "[]" ]
+    //    e.g. => "[{ user: \"user\" }, \"[]\"]"
+    if (inner.type.startsWith("{") && inner.type.endsWith("}")) {
+      return { type: `[${inner.type}, "[]"]`, isOptional };
+    }
+
+    // d) fallback => e.g. => "TimeStub[]" or just "string[]" if it’s a weird scenario
+    return { type: `${inner.type}[]`, isOptional };
   }
 
   // 4) If "Ref<User>"
   if (trimmed.startsWith("Ref<") && trimmed.endsWith(">")) {
-    const inside = trimmed.slice(4, -1).trim(); // e.g. "User"
+    const inside = trimmed.slice(4, -1).trim(); // "User"
     if (mode === "main") {
       // => "\"user\""
       return { type: `"${inside.toLowerCase()}"`, isOptional };
     } else {
-      // => "v.createRef(type("'User'"))"
+      // => v.createRef(type("'User'"))
       return { type: `v.createRef(type("'${inside}'"))`, isOptional };
     }
   }
 
-  // 5) If an object literal => parse subfields
+  // 5) object literal
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    const result = parseFaunaObjectLiteral(trimmed, mode);
-    return { type: result, isOptional };
+    const obj = parseFaunaObjectLiteral(trimmed, mode);
+    return { type: obj, isOptional };
   }
 
-  // 6) Convert known Fauna scalars
+  // 6) convert known fauna scalars => e.g. "\"string\""
   const scalar = convertFaunaScalar(trimmed);
   if (scalar) {
     return { type: scalar, isOptional };
   }
 
-  // 7) Fallback => wrap in double quotes => e.g. "\"someField\""
+  // 7) fallback => wrap in quotes => e.g. "\"myType\""
   return { type: `"${trimmed}"`, isOptional };
 }
 
-/** 
- * If there's a pipe with zero nesting => treat as top-level union
- */
+/** Only treat '|' as union if it occurs with zero brace nesting. */
 function isTopLevelUnion(sig: string): boolean {
   let depth = 0;
   for (let i = 0; i < sig.length; i++) {
     const c = sig[i];
     if (c === "{" || c === "<") depth++;
     else if (c === "}" || c === ">") depth--;
-    else if (c === "|" && depth === 0) {
-      return true;
-    }
+    else if (c === "|" && depth === 0) return true;
   }
   return false;
 }
 
-/** 
- * Convert Fauna scalars:
- * String => "\"string\""
- * Boolean => "\"boolean\""
- * Long/Int => "\"number\""
- * Time => "TimeStub"
- * etc.
+/**
+ * e.g. "String" => "\"string\"", "Boolean" => "\"boolean\"",
+ * "Long"/"Int" => "\"number\"", "Time"/"Timestamp" => "TimeStub", etc.
  */
 function convertFaunaScalar(faunaType: string): string | null {
   switch (faunaType) {
-    case "String":     return `"string"`;
-    case "Boolean":    return `"boolean"`;
+    case "String":
+      return `"string"`;
+    case "Boolean":
+      return `"boolean"`;
     case "Long":
-    case "Int":        return `"number"`;
+    case "Int":
+      return `"number"`;
     case "Time":
-    case "Timestamp":  return "TimeStub";
-    case "Date":       return "DateStub";
-    case "Null":       return "null";
-    default:           return null;
+    case "Timestamp":
+      return "TimeStub";
+    case "Date":
+      return "DateStub";
+    case "Null":
+      return "null";
+    default:
+      return null;
   }
 }
 
 /**
- * parseFaunaObjectLiteral:
- * Splits on top-level commas => key: val => parseFaunaType => merges
- * e.g. => "{ name: "'Github' | 'Google'", userId: "\"string\"" }"
+ * parseFaunaObjectLiteral => splits top-level commas => "key: val" => parseFaunaType
  */
 function parseFaunaObjectLiteral(sig: string, mode: ParseMode): string {
   const inside = sig.slice(1, -1).trim();
   const props = splitProps(inside);
-
   const finalProps = props.map((chunk) => {
     const idx = chunk.indexOf(":");
-    if (idx === -1) return chunk; // fallback
+    if (idx === -1) return chunk;
     const key = chunk.slice(0, idx).trim();
     const val = chunk.slice(idx + 1).trim();
-
     const { type } = parseFaunaType(val, mode);
     return `${key}: ${type}`;
   });
-
   return `{ ${finalProps.join(", ")} }`;
 }
 
+/** Splits object fields on commas not nested in { or <. */
 function splitProps(str: string): string[] {
   let depth = 0;
   let start = 0;
@@ -156,7 +172,21 @@ function splitProps(str: string): string[] {
 }
 
 /**
- * stripOuterQuotesThenSingleQuote:
+ * If the type is a double-quoted string, e.g. "\"string\"" => that is a "quoted scalar".
+ */
+function isQuotedScalar(typeStr: string): boolean {
+  // e.g. "\"string\"" => at least 2 chars, starts+ends with quote
+  return (
+    typeStr.length >= 2 &&
+    typeStr.startsWith('"') &&
+    typeStr.endsWith('"') &&
+    // not an object literal
+    !typeStr.startsWith('"{') &&
+    !typeStr.endsWith('}"')
+  );
+}
+
+/**
  * e.g.  "Google" => 'Google'
  *       "'Facebook'" => 'Facebook'
  *       "\"Github\"" => 'Github'
